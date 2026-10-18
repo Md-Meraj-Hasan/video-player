@@ -1,0 +1,138 @@
+
+name: Build Offline Android APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - master
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Diagnose project files
+        shell: bash
+        run: |
+          echo "===== REPOSITORY ROOT ====="
+          pwd
+          ls -la
+
+          echo "===== SEARCHING PROJECT FILES ====="
+          find . -maxdepth 5 -type f \( \
+            -name package.json -o \
+            -name package-lock.json -o \
+            -name capacitor.config.json -o \
+            -name index.html -o \
+            -name strip-internet-permission.cjs \
+          \) -print
+
+      - name: Verify project configuration
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f package.json ]; then
+            echo "ERROR: package.json is missing."
+            echo "Add the project's package.json to the repository root."
+            exit 1
+          fi
+
+          if [ ! -f capacitor.config.json ]; then
+            echo "ERROR: capacitor.config.json is missing."
+            exit 1
+          fi
+
+          if [ ! -f index.html ]; then
+            echo "ERROR: index.html is missing."
+            exit 1
+          fi
+
+          if [ ! -f scripts/strip-internet-permission.cjs ]; then
+            echo "ERROR: Internet permission script is missing."
+            exit 1
+          fi
+
+          if [ ! -f scripts/integrate-native-media.cjs ] || [ ! -f android-native/MediaPermissionPlugin.kt ] || [ ! -f android-native/MediaLibraryScannerPlugin.kt ]; then
+            echo "ERROR: Native media integration files are missing."
+            exit 1
+          fi
+
+          echo "Project configuration verified."
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+
+      - name: Set up Java
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+          cache: gradle
+
+      - name: Install web dependencies
+        run: npm install --no-audit --no-fund
+
+      - name: Build web assets
+        run: npm run build
+
+      - name: Generate Android project
+        run: npx cap add android
+
+      - name: Integrate native media permissions and scanner
+        run: node scripts/integrate-native-media.cjs
+
+      - name: Block internet permission
+        run: node scripts/strip-internet-permission.cjs
+
+      - name: Sync Capacitor assets
+        run: npx cap sync android
+
+      - name: Re-apply internet permission block
+        run: node scripts/strip-internet-permission.cjs
+
+      - name: Verify Android manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          MANIFEST="android/app/src/main/AndroidManifest.xml"
+
+          if [ ! -f "$MANIFEST" ]; then
+            echo "ERROR: Android manifest not found."
+            exit 1
+          fi
+
+          if ! grep -q 'tools:node="remove"' "$MANIFEST"; then
+            echo "ERROR: INTERNET permission removal rule is missing."
+            cat "$MANIFEST"
+            exit 1
+          fi
+
+          echo "Internet permission removal rule found."
+
+      - name: Build debug APK
+        working-directory: android
+        shell: bash
+        run: |
+          set -euo pipefail
+          chmod +x gradlew
+          ./gradlew --no-daemon assembleDebug
+
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: meraj-media-player-debug-apk
+          path: android/app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
+          retention-days: 14
