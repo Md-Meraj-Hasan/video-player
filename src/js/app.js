@@ -425,36 +425,76 @@
     }
     shown.forEach((file, i) => {
       const item = document.createElement("div");
-      const active = state.mode === "audio" ? state.files[state.index] && fileKey(state.files[state.index]) === fileKey(file) : i === state.index;
-      item.className = `playlist-item${active ? " active" : ""}${state.mode === "video" ? " video-library-card" : ""}`;
-      if (state.mode === "video") { const thumb = document.createElement("div"); thumb.className = "video-card-thumb"; thumb.innerHTML = '<span class="thumb-film-icon">▶</span><span class="thumb-duration">VIDEO</span>'; thumb.setAttribute("aria-hidden", "true"); item.appendChild(thumb); }
-      const button = document.createElement("button"); button.className = "playlist-play"; button.type = "button";
+      const active = state.mode === "audio"
+        ? state.files[state.index] && fileKey(state.files[state.index]) === fileKey(file)
+        : i === state.index;
+      const isVideo = state.mode === "video";
+      item.className = `playlist-item${active ? " active" : ""}${isVideo ? " video-library-card" : ""}`;
+
+      if (isVideo) {
+        // Explicit inline layout avoids legacy MP3 CSS rules collapsing video card content.
+        item.style.cssText = "display:flex;flex-direction:column;align-items:stretch;position:relative;min-width:0;min-height:150px;height:auto;padding:0;overflow:hidden;border:1px solid #303247;border-radius:15px;background:#141622;color:#f5f3ff;box-sizing:border-box;cursor:pointer;";
+        const thumb = document.createElement("div");
+        thumb.className = "video-card-thumb";
+        thumb.setAttribute("aria-hidden", "true");
+        thumb.style.cssText = "display:flex;align-items:center;justify-content:center;position:relative;width:100%;height:clamp(92px,27vw,136px);min-height:92px;flex:0 0 auto;overflow:hidden;background:linear-gradient(145deg,#242943 0%,#171b2e 52%,#10121d 100%);";
+        thumb.innerHTML = '<span class="thumb-film-icon" style="display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:rgba(139,124,255,.22);border:1px solid rgba(177,166,255,.5);color:#fff;font-size:17px;">▶</span><span class="thumb-duration" style="position:absolute;right:7px;bottom:7px;padding:3px 6px;border-radius:5px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;">VIDEO</span>';
+        item.appendChild(thumb);
+      }
+
+      const button = document.createElement("button");
+      button.className = "playlist-play";
+      button.type = "button";
       button.textContent = active && !activeMedia().paused ? "Ⅱ" : "▶";
-      button.setAttribute("aria-label", `Play ${file.name}`);
-      button.addEventListener("click", () => {
+      button.setAttribute("aria-label", `Play ${file.name || "video"}`);
+      button.addEventListener("click", e => {
+        e.stopPropagation();
         if (active) {
           if (activeMedia().paused) activeMedia().play().catch(() => {});
           else activeMedia().pause();
         } else if (state.mode === "audio") {
           const queue = currentAudioList();
           playIndex(queue.findIndex(f => fileKey(f) === fileKey(file)), true, queue);
-        } else playIndex(i, true);
+        } else playIndex(state.files.findIndex(f => fileKey(f) === fileKey(file)), true);
       });
-      const info = document.createElement("div"); info.className = state.mode === "video" ? "playlist-info video-card-info" : "playlist-info";
+
+      const info = document.createElement("div");
+      info.className = isVideo ? "playlist-info video-card-info" : "playlist-info";
+      if (isVideo) {
+        info.style.cssText = "display:block;position:relative;box-sizing:border-box;width:100%;min-width:0;min-height:58px;flex:0 0 auto;padding:10px 10px 12px;overflow:hidden;background:transparent;color:#f5f3ff;cursor:pointer;";
+      }
       info.addEventListener("click", () => {
         if (state.mode === "audio") {
           const queue = currentAudioList();
           playIndex(queue.findIndex(f => fileKey(f) === fileKey(file)), true, queue);
         } else playIndex(state.files.findIndex(f => fileKey(f) === fileKey(file)), true);
       });
-      const name = document.createElement("div"); name.className = "playlist-name"; name.textContent = file.name || file.displayName || "Untitled video";
-      const meta = document.createElement("div"); meta.className = "playlist-meta"; meta.textContent = `${getFolder(file) || "On device"} · ${formatBytes(file.size)}`;
+
+      const name = document.createElement("div");
+      name.className = "playlist-name";
+      name.textContent = file.name || file.displayName || "Untitled video";
+      if (isVideo) name.style.cssText = "display:block;visibility:visible;opacity:1;color:#f5f3ff;font-size:12px;font-weight:750;line-height:1.4;white-space:normal;overflow-wrap:anywhere;word-break:break-word;max-height:2.8em;overflow:hidden;";
+      const meta = document.createElement("div");
+      meta.className = "playlist-meta";
+      meta.textContent = `${getFolder(file) || "On device"} · ${formatBytes(file.size)}`;
+      if (isVideo) meta.style.cssText = "display:block;visibility:visible;opacity:1;color:#aeb0c8;font-size:10px;line-height:1.4;margin-top:5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
       info.append(name, meta);
-      if (state.mode === "video") { const playBadge = document.createElement("span"); playBadge.className = "video-card-play"; playBadge.textContent = "▶"; item.appendChild(playBadge); item.addEventListener("click", e => { if (e.target !== button) playIndex(state.files.findIndex(f => fileKey(f) === fileKey(file)), true); }); }
-      if (state.mode === "video") { item.append(info); info.classList.add("video-card-info"); } else item.append(button, info);
-      if (state.mode === "audio") {
-        const fav = document.createElement("button"); fav.className = `favorite-toggle${isFavorite(file) ? " is-favorite" : ""}`;
-        fav.type = "button"; fav.textContent = isFavorite(file) ? "♥" : "♡"; fav.title = isFavorite(file) ? "Remove favorite" : "Add favorite";
+
+      if (isVideo) {
+        const playBadge = document.createElement("span");
+        playBadge.className = "video-card-play";
+        playBadge.textContent = "▶";
+        item.appendChild(info);
+        item.addEventListener("click", e => {
+          if (!e.target.closest("button")) playIndex(state.files.findIndex(f => fileKey(f) === fileKey(file)), true);
+        });
+      } else {
+        item.append(button, info);
+        const fav = document.createElement("button");
+        fav.className = `favorite-toggle${isFavorite(file) ? " is-favorite" : ""}`;
+        fav.type = "button";
+        fav.textContent = isFavorite(file) ? "♥" : "♡";
+        fav.title = isFavorite(file) ? "Remove favorite" : "Add favorite";
         fav.addEventListener("click", () => toggleFavorite(file));
         item.append(fav);
       }
