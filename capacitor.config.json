@@ -1,0 +1,8 @@
+{
+  "appId": "com.meraj.videoplayer",
+  "appName": "Meraj Video",
+  "webDir": "dist",
+  "android": {
+    "allowMixedContent": false
+  }
+}
