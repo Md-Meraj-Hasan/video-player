@@ -108,12 +108,8 @@ import { App } from '@capacitor/app';
     renderPlaylist();
   }
   function updateScanMessage(message) {
-    // The scan-status banner was intentionally removed to reclaim library space.
-    // Keep this function safe for scan progress updates without requiring banner DOM nodes.
-    const title = $("scan-title");
-    const description = $("scan-description");
-    if (title) title.textContent = message || (state.mode === "audio" ? "Music library" : "Video library");
-    if (description) description.textContent = message
+    $("scan-title").textContent = message || (state.mode === "audio" ? "Music library" : "Video library");
+    $("scan-description").textContent = message
       ? "Media is read locally from your Android device."
       : "Tap Rescan to refresh media stored on this device.";
   }
@@ -316,6 +312,10 @@ import { App } from '@capacitor/app';
       $("video-frame").classList.remove("hidden");
       video.classList.remove("hidden");
       video.style.display = "block";
+      // Option B must be active in the normal inline player too, not only fullscreen.
+      // Attach controls before metadata arrives so the overlay never falls into document flow.
+      positionVideoControls();
+      showVideoControls(true);
       video.src = videoUrl;
       video.load();
     } else {
@@ -386,18 +386,16 @@ import { App } from '@capacitor/app';
     playIndex(globalIndex >= 0 ? globalIndex : 0, true);
   }
   async function toggleLandscape() {
-    // Sensor-driven rotation: never force "landscape" or "portrait" here.
-    // Enter fullscreen and let Android's accelerometer / system Auto-rotate decide
-    // whether the video should be landscape-left, landscape-right, or portrait.
+    // Android WebView generally allows orientation locking only after a user gesture
+    // and often only while the media frame is fullscreen. Enter fullscreen first.
     try {
+      const isLandscape = Boolean(screen.orientation?.type?.startsWith("landscape"));
       if (!document.fullscreenElement) {
         const target = $("video-frame");
         if (target?.requestFullscreen) await target.requestFullscreen();
         else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
-      } else {
-        // Keep fullscreen active; the device sensor controls the direction.
-        screen.orientation?.unlock?.();
       }
+      if (screen.orientation?.lock) await screen.orientation.lock(isLandscape ? "portrait" : "landscape");
     } catch (_) {
       if (!document.fullscreenElement) await toggleVideoFullscreen();
     }
@@ -418,9 +416,7 @@ import { App } from '@capacitor/app';
         const target = $("video-frame");
         if (target.requestFullscreen) await target.requestFullscreen();
         else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
-        // Do not lock to a fixed landscape direction. Let Android sensor rotation
-        // follow the physical phone orientation automatically.
-        try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (_) {}
+        try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape"); } catch (_) {}
       } else {
         await document.exitFullscreen();
         try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (_) {}
@@ -749,9 +745,41 @@ import { App } from '@capacitor/app';
     video.style.width = "100%";
     video.style.height = "100%";
     const isPortrait = video.videoHeight > video.videoWidth;
-    // Keep video inside the regular player page; do not switch to a separate immersive page.
+    // Match the frame to the video's actual aspect ratio. Otherwise a portrait video
+    // sits in a wide black letterbox and the overlay appears beside the picture.
     frame.classList.toggle("video-portrait", isPortrait);
     frame.classList.toggle("video-landscape", !isPortrait);
+    function sizeVideoFrameToMedia() {
+      const vw = video.videoWidth, vh = video.videoHeight;
+      if (!vw || !vh || document.fullscreenElement === frame) return;
+      const ratio = vw / vh;
+      const maxH = Math.max(240, Math.min(window.innerHeight * 0.54, 520));
+      const availableW = Math.max(240, Math.min(frame.parentElement?.clientWidth || window.innerWidth, window.innerWidth - 28));
+      let h = Math.min(maxH, availableW / ratio);
+      let w = h * ratio;
+      if (w > availableW) { w = availableW; h = w / ratio; }
+      frame.style.width = `${Math.round(w)}px`;
+      frame.style.height = `${Math.round(h)}px`;
+      frame.style.maxWidth = '100%';
+      frame.style.maxHeight = 'none';
+      frame.style.marginInline = 'auto';
+      frame.style.aspectRatio = `${vw} / ${vh}`;
+    }
+    sizeVideoFrameToMedia();
+    if (!frame.dataset.resizeBound) {
+      window.addEventListener('resize', () => {
+        if (video.videoWidth && video.videoHeight && !document.fullscreenElement) {
+          const ratio = video.videoWidth / video.videoHeight;
+          const maxH = Math.max(240, Math.min(window.innerHeight * 0.54, 520));
+          const availableW = Math.max(240, Math.min(frame.parentElement?.clientWidth || window.innerWidth, window.innerWidth - 28));
+          const h = Math.min(maxH, availableW / ratio);
+          const w = h * ratio;
+          frame.style.width = `${Math.round(w)}px`;
+          frame.style.height = `${Math.round(h)}px`;
+        }
+      }, { passive: true });
+      frame.dataset.resizeBound = '1';
+    }
     state.videoFit = "contain";
     applyVideoFit();
     const status = $("video-status");
@@ -769,6 +797,7 @@ import { App } from '@capacitor/app';
     if (video.videoWidth > 0 && video.videoHeight > 0) {
       $("video-status").textContent = `Video picture ready · ${video.videoWidth}×${video.videoHeight}`;
     }
+    positionVideoControls();
   });
   video.addEventListener("waiting", () => {
     if (video.readyState < 3) $("video-status").textContent = "Loading video frames…";
@@ -844,7 +873,9 @@ import { App } from '@capacitor/app';
     else { $("play-pause").textContent = "▶"; }
   });
   video.addEventListener("loadedmetadata", () => {
-    const d = Number.isFinite(video.duration) ? formatTime(video.duration) : "0:00";
+    positionVideoControls();
+    showVideoControls(true);
+    const d = Number.isFinite(video.duration) && video.duration >= 0 ? formatTime(video.duration) : "0:00";
     const status = $("video-status");
     if (status) status.textContent = `Video ready · 0:00 / ${d}`;
   });
