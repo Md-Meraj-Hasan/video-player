@@ -683,9 +683,15 @@ import { App } from '@capacitor/app';
   $("video-overlay-play").addEventListener("click", () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
   $("video-overlay-fit").addEventListener("click", () => { state.videoFit = "contain"; applyVideoFit(); });
 <<<<<<< HEAD
+<<<<<<< HEAD
   $("video-overlay-fullscreen")?.addEventListener("click", toggleVideoFullscreen);
   $("video-overlay-volume")?.addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
   $("video-overlay-volume-slider")?.addEventListener("input", e => { video.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100)); const volumeButton = $("video-overlay-volume"); if (volumeButton) volumeButton.textContent = video.volume === 0 ? "🔇" : "🔊"; });
+=======
+  $("video-overlay-fullscreen").addEventListener("click", toggleVideoFullscreen);
+  $("video-overlay-volume").addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
+  $("video-overlay-volume-slider").addEventListener("input", e => { video.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100)); $("video-overlay-volume").textContent = video.volume === 0 ? "🔇" : "🔊"; });
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
 =======
   $("video-overlay-fullscreen").addEventListener("click", toggleVideoFullscreen);
   $("video-overlay-volume").addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
@@ -868,6 +874,7 @@ import { App } from '@capacitor/app';
   setVolumeBoost("video", 100);
   updateModes();
 <<<<<<< HEAD
+<<<<<<< HEAD
   // One shared handler is called by MainActivity's native Back override.
   // Keep Capacitor's event as a fallback for environments without the native bridge.
   let backHandling = false;
@@ -876,10 +883,15 @@ import { App } from '@capacitor/app';
     backHandling = true;
     try {
 =======
+=======
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
   // Register exactly one Android Back handler. Duplicate listeners can consume
   // the same press and make the system Back button appear unresponsive.
   try {
     App.addListener("backButton", async () => {
+<<<<<<< HEAD
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+=======
 >>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
       const frame = $("video-frame");
       const stage = $("media-stage");
@@ -897,7 +909,12 @@ import { App } from '@capacitor/app';
       }
       if (stage && !stage.classList.contains("hidden")) {
 <<<<<<< HEAD
+<<<<<<< HEAD
         video.pause(); audio.pause();
+=======
+        video.pause();
+        audio.pause();
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
 =======
         video.pause();
         audio.pause();
@@ -912,6 +929,7 @@ import { App } from '@capacitor/app';
       }
       if (!playerScreen.classList.contains("hidden")) {
 <<<<<<< HEAD
+<<<<<<< HEAD
         // Stay on the library; Android's normal task navigation can exit if needed.
         return;
       }
@@ -924,6 +942,8 @@ import { App } from '@capacitor/app';
     App.addListener("backButton", () => window.handleMerajAndroidBack?.());
   } catch (_) { /* Native App plugin unavailable in browser preview. */ }
 =======
+=======
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
         // On the library, Back exits the app as expected.
         try { await App.exitApp(); } catch (_) {}
         return;
@@ -931,6 +951,9 @@ import { App } from '@capacitor/app';
       try { await App.exitApp(); } catch (_) {}
     });
   } catch (_) { /* Native App plugin is unavailable in browser preview. */ }
+<<<<<<< HEAD
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+=======
 >>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
 
   renderPlaylist();

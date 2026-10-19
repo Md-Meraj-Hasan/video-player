@@ -813,6 +813,7 @@ body.folders-view #player-screen .video-library-toolbar .library-tabs { flex:1 1
 #player-screen .playlist-header h3 { font-size: 15px !important; line-height: 22px !important; }
 #player-screen .playlist-header h3 span { padding: 3px 7px !important; font-size: 11px !important; border-radius: 9px !important; }
 <<<<<<< HEAD
+<<<<<<< HEAD
 
 /* Fix 13: ensure all playback actions exist and render as a compact, aligned toolbar. */
 #media-stage .video-overlay-actions { display:flex!important; flex-wrap:nowrap!important; align-items:center!important; justify-content:space-between!important; gap:2px!important; width:100%!important; min-width:0!important; }
@@ -828,5 +829,7 @@ body.folders-view #player-screen .video-library-toolbar .library-tabs { flex:1 1
   #media-stage .video-overlay-actions { gap:1px!important; }
   #media-stage .video-overlay-actions button { height:29px!important; min-height:29px!important; font-size:12px!important; border-radius:6px!important; }
 }
+=======
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
 =======
 >>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
