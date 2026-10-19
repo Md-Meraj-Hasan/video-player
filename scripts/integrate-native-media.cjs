@@ -93,6 +93,29 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
 if (!main.includes('MediaLibraryScannerPlugin::class.java') && !main.includes('MediaLibraryScannerPlugin.class')) {
   throw new Error(`Could not register native media plugins in ${mainActivity}`);
 }
+// Route Android's hardware/system Back button directly into the single web handler.
+// This avoids relying only on Capacitor's backButton event, which may not fire if a
+// plugin or WebView consumes the dispatcher event first. Inject idempotently.
+if (mainActivity.endsWith('.kt')) {
+  if (!main.includes('handleMerajAndroidBack')) {
+    const method = `\n    @Suppress(\"DEPRECATION\")\n    override fun onBackPressed() {\n        val webView = bridge?.webView\n        if (webView != null) {\n            webView.post { webView.evaluateJavascript(\"window.handleMerajAndroidBack && window.handleMerajAndroidBack();\", null) }\n        } else {\n            super.onBackPressed()\n        }\n    }\n`;
+    const lastBrace = main.lastIndexOf('}');
+    if (lastBrace < 0) throw new Error(`Could not inject native Back handler into ${mainActivity}`);
+    main = main.slice(0, lastBrace) + method + main.slice(lastBrace);
+  }
+} else if (mainActivity.endsWith('.java')) {
+  if (!main.includes('handleMerajAndroidBack')) {
+    if (!/import\s+android\.webkit\.WebView\s*;/.test(main)) {
+      const packageMatch = /package\s+[A-Za-z0-9_.]+\s*;/.exec(main);
+      if (packageMatch) main = main.slice(0, packageMatch.index + packageMatch[0].length) + '\n\nimport android.webkit.WebView;' + main.slice(packageMatch.index + packageMatch[0].length);
+    }
+    const lastBrace = main.lastIndexOf('}');
+    if (lastBrace < 0) throw new Error(`Could not inject native Back handler into ${mainActivity}`);
+    const method = `\n    @Override\n    @SuppressWarnings(\"deprecation\")\n    public void onBackPressed() {\n        WebView webView = getBridge() != null ? getBridge().getWebView() : null;\n        if (webView != null) {\n            webView.post(() -> webView.evaluateJavascript(\"window.handleMerajAndroidBack && window.handleMerajAndroidBack();\", null));\n        } else {\n            super.onBackPressed();\n        }\n    }\n`;
+    main = main.slice(0, lastBrace) + method + main.slice(lastBrace);
+  }
+}
+
 // WebView must allow playback after the async native MediaStore preparation step.
 if (mainActivity.endsWith('.kt') && !main.includes('mediaPlaybackRequiresUserGesture = false')) {
   main = main.replace(/super\.onCreate\(savedInstanceState\)/, 'super.onCreate(savedInstanceState)\n        bridge.webView.settings.mediaPlaybackRequiresUserGesture = false');

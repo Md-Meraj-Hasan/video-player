@@ -254,13 +254,13 @@ body.portrait-video-mode { background: var(--bg); overflow: hidden; }
 body.portrait-video-mode .app-shell { width:min(100%,760px); height:100dvh; min-height:0; padding:env(safe-area-inset-top) 22px env(safe-area-inset-bottom); }
 body.portrait-video-mode .topbar, body.portrait-video-mode .app-footer { display:flex !important; }
 body.portrait-video-mode .player-screen { position:relative; inset:auto; z-index:auto; padding-top:10px; overflow:hidden; }
-body.portrait-video-mode #media-stage { position:relative; inset:auto; max-height:44dvh; overflow:visible; padding:0; border:0; border-radius:0; background:transparent; }
+body.portrait-video-mode #media-stage { position:relative; inset:auto; max-height:32dvh; overflow:visible; padding:0; border:0; border-radius:0; background:transparent; }
 body.portrait-video-mode .playlist-section { display:flex !important; }
 body.portrait-video-mode #video-tools { display:none !important; }
-#media-stage { max-height:44dvh; min-height:0; margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; overflow:visible; display:flex; flex-direction:column; gap:4px; }
+#media-stage { max-height:32dvh; min-height:0; margin:0 !important; padding:0 !important; border:0 !important; border-radius:0 !important; background:transparent !important; box-shadow:none !important; overflow:visible; display:flex; flex-direction:column; gap:4px; }
 #media-stage .video-tools { display:none !important; }
 #media-stage .video-frame { flex:0 0 auto; width:100%; height:min(32dvh, 58vw); min-height:150px; max-height:36dvh; aspect-ratio:16/9; margin:0 auto; border-radius:12px; background:#000; overflow:hidden; }
-#media-stage .video-frame.video-portrait { height:min(38dvh, 340px); min-height:180px; max-height:40dvh; aspect-ratio:auto; }
+#media-stage .video-frame.video-portrait { height:min(25dvh, 230px); min-height:145px; max-height:27dvh; aspect-ratio:auto; }
 #media-stage .video-frame.video-landscape { height:min(32dvh, 58vw); min-height:150px; max-height:36dvh; aspect-ratio:16/9; }
 #media-stage .video-element { display:block; width:100% !important; height:100% !important; min-height:0 !important; max-height:none !important; object-fit:contain !important; border-radius:0; background:#000; }
 #media-stage .track-details { margin:4px 0 0; text-align:left; }
@@ -278,7 +278,7 @@ body.portrait-video-mode #video-tools { display:none !important; }
 .video-frame:fullscreen, .video-frame.is-fullscreen { width:100vw; height:100dvh; max-height:none; border-radius:0; }
 .video-frame:fullscreen .video-element, .video-frame.is-fullscreen .video-element { width:100% !important; height:100% !important; max-height:none !important; }
 @media(max-width:390px) { .video-overlay-bottom { padding-left:10px !important; padding-right:10px !important; } .video-overlay-actions { gap:5px !important; } .video-overlay-actions button { min-width:44px !important; padding:0 7px; } .video-overlay-actions .overlay-play { min-width:60px !important; width:60px; height:60px !important; flex-basis:60px; } }
-@media(max-height:700px) { #media-stage { max-height:42dvh; } #media-stage .video-frame.video-portrait { height:min(34dvh,300px); min-height:145px; max-height:36dvh; } #media-stage .video-frame.video-landscape { height:min(28dvh,56vw); min-height:125px; max-height:31dvh; } }
+@media(max-height:700px) { #media-stage { max-height:30dvh; } #media-stage .video-frame.video-portrait { height:min(23dvh,190px); min-height:125px; max-height:25dvh; } #media-stage .video-frame.video-landscape { height:min(28dvh,56vw); min-height:125px; max-height:31dvh; } }
 
 
 /* === Meraj Video Player: refined mobile library layout === */
@@ -502,3 +502,331 @@ main { min-height:0; flex:1; overflow:hidden; }
 #player-screen #playlist { overflow-y:auto; overscroll-behavior:contain; }
 #welcome-screen .hero-icon { color:#8b7cff; }
 #welcome-screen .choice-card { width:100%; }
+
+/* Meraj Video Player — reference-inspired layout, original teal/cyan theme.
+   This is a visual-only layer: playback, seekbar and native media logic stay intact. */
+:root{
+  --bg:#071014;--panel:#0d1a20;--panel2:#12242b;--line:rgba(62,220,199,.19);
+  --text:#f1fbfa;--muted:#92a9ae;--purple:#36d6c3;--blue:#57b8e8;--pink:#9af0e4;
+}
+html,body{background:#071014;color:#f1fbfa}
+body{background:radial-gradient(ellipse at 0% 0%,rgba(27,153,153,.17),transparent 42%),radial-gradient(ellipse at 100% 10%,rgba(44,116,174,.12),transparent 36%),#071014}
+.app-shell{background:transparent}
+.topbar{border-bottom-color:rgba(122,235,220,.12)}
+.brand-mark{background:linear-gradient(135deg,#13b8a6,#2878b8);box-shadow:0 5px 24px #13b8a633}
+.brand-dot,.eyebrow{color:#57d9c9}
+.brand-copy .eyebrow{color:#7fa9ad}
+.offline-pill{border-color:#2ad5a633;color:#7fe9ba}
+.library-title-wrap h2{letter-spacing:-.9px}
+.library-title-wrap>p:last-child{color:#9cb2b7}
+.icon-action{border-color:#36d6c344;background:linear-gradient(135deg,#0d817a38,#226f9b35);color:#9af0e4;box-shadow:0 5px 20px #0d817a16}
+.library-search{border-color:#2e6f7566;background:linear-gradient(110deg,#0d1c22,#0b171d);color:#5ce1d1;box-shadow:inset 0 1px #ffffff06}
+.library-search input{color:#f1fbfa}
+.library-search input::placeholder{color:#789298}
+.library-tab{border-color:#24434b;background:#0d191f;color:#91a9af}
+.library-tab.selected{border-color:#3acdbc;background:linear-gradient(120deg,#167f7960,#236f9850);color:#f4fffe;box-shadow:inset 0 0 0 1px #36d6c31b}
+.library-scan-panel{border-color:#27525a;background:linear-gradient(110deg,#10252b,#111d29)}
+.scan-pulse{background:#39d5c4;box-shadow:0 0 0 7px #39d5c41c}
+.small-action{border-color:#36d6c344;background:#36d6c311;color:#b8fff4}
+.small-action.selected{background:#22b8a62e;border-color:#54dfd0;color:#fff}
+.playlist-section{border-top-color:#24434b}
+.playlist-header h3 span{color:#9af0e4;background:#36d6c31c}
+.playlist:not(.folder-card-list){gap:12px}
+.video-library-card{border-color:#24444c;background:linear-gradient(160deg,#12252c,#0b171d);box-shadow:0 7px 20px #0004}
+.video-library-card.active{border-color:#3bd8c9;box-shadow:0 0 0 1px #36d6c328,0 8px 22px #0005}
+.video-card-thumb{background:radial-gradient(ellipse at 25% 20%,#176b6a 0,transparent 48%),radial-gradient(ellipse at 85% 75%,#174f78 0,transparent 50%),linear-gradient(135deg,#18363c,#0a151b 70%)}
+.video-card-thumb:before,.video-card-thumb:after{border-color:#a6fff01b}
+.thumb-film-icon{background:#27b9a82e;border-color:#9af0e477;color:#f3fffd}
+.thumb-duration{background:#031115e8;color:#bdf9ef}
+.video-library-card .video-card-info{background:linear-gradient(180deg,#12252c,#0c181e)!important}
+.video-library-card .playlist-name{color:#f2fbfa!important}
+.video-library-card .playlist-meta{color:#91aeb3!important}
+.folder-card{border-color:#24464e;background:linear-gradient(110deg,#10232a,#0c171d);color:#f1fbfa}
+.folder-card-icon{background:#1db6a625;color:#81eadb}
+.folder-card-arrow{color:#58ddce}
+.bottom-navigation{border-top-color:#1d3b43;background:#081318}
+.bottom-nav-item{color:#718b91}
+.bottom-nav-item.active{color:#72e6d8}
+.video-overlay-controls{background:linear-gradient(#031015a8,transparent 25%,transparent 62%,#031015d9)}
+.video-overlay-top button,.video-overlay-actions button{background:#061b20b8;border:1px solid #9beee526;color:#eafffc}
+.video-overlay-actions .overlay-play{background:#168f83b5;border-color:#a2fff077}
+.video-seekbar{accent-color:#39d5a0}
+.video-overlay-volume-panel{background:#0b2026ed;border:1px solid #2c626a}
+.video-overlay-volume-panel input{accent-color:#39d5a0}
+.playlist-empty{background:#102128;color:#92a9ae;border:1px dashed #2a535a}
+.text-button{color:#79e3d7}
+@media(max-width:380px){
+ .app-shell{padding-left:16px;padding-right:16px}
+ .library-title-wrap h2{font-size:25px}
+ .video-card-thumb{height:clamp(94px,29vw,122px)}
+ .bottom-nav-item small{font-size:9px}
+}
+
+
+/* Fix pack: horizontal folder chips, real thumbnails, full-height selected-folder list. */
+.video-folder-strip { display:flex; flex:0 0 auto; gap:8px; overflow-x:auto; overflow-y:hidden; padding:1px 1px 9px; margin:0 0 2px; scrollbar-width:none; overscroll-behavior-x:contain; }
+.video-folder-strip::-webkit-scrollbar { display:none; }
+.folder-chip { flex:0 0 auto; max-width:190px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; padding:9px 13px; border-radius:999px; border:1px solid #303247; background:#121521; color:#b8bbd2; font-size:11px; font-weight:750; }
+.folder-chip.selected { color:#f7f5ff; border-color:#35d0c0; background:linear-gradient(120deg,#123c46,#202344); box-shadow:0 0 0 1px #35d0c022; }
+.video-card-thumb { background-repeat:no-repeat; background-position:center; background-size:cover; }
+.thumb-film-icon.thumb-icon-over-image { background:#070a12a8!important; border-color:#ffffff99!important; box-shadow:0 2px 10px #0007; }
+/* Controls live immediately below the video, not over the first decoded frame. */
+#media-stage { display:flex; flex-direction:column; align-items:stretch; gap:0; }
+#media-stage .video-frame { width:100%; height:clamp(230px,42dvh,420px); max-height:45dvh; min-height:210px; aspect-ratio:auto; flex:0 0 auto; }
+#media-stage .video-frame.video-portrait { height:clamp(260px,45dvh,460px); max-height:48dvh; min-height:230px; }
+#media-stage .video-frame.video-landscape { height:clamp(220px,38dvh,360px); max-height:40dvh; min-height:190px; }
+#media-stage .video-overlay-controls { position:relative; inset:auto; z-index:1; display:flex; width:100%; flex:0 0 auto; min-height:0; margin-top:8px; border:1px solid #2c3144; border-radius:16px; background:linear-gradient(145deg,#141827,#0e111b); opacity:1; pointer-events:auto; }
+#media-stage .video-overlay-controls.hidden { display:none!important; }
+#media-stage .video-overlay-top { padding:8px 12px!important; }
+#media-stage .video-overlay-top button { min-width:38px!important; width:38px; height:38px!important; }
+#media-stage .video-overlay-bottom { padding:8px 12px 11px!important; }
+#media-stage .video-overlay-time { font-size:12px!important; }
+#media-stage .video-seekbar { margin:7px 0 10px!important; }
+#media-stage .video-overlay-actions { display:flex; flex-wrap:nowrap; gap:5px!important; }
+#media-stage .video-overlay-actions button { flex:1 1 0; min-width:0!important; height:43px!important; padding:0 5px!important; border-radius:12px!important; font-size:13px!important; }
+#media-stage .video-overlay-actions .overlay-play { flex:0 0 52px; min-width:52px!important; width:52px; height:52px!important; border-radius:50%!important; }
+body.has-selected-video-folder #library-scan-panel { display:none!important; }
+body.has-selected-video-folder #player-screen > .playlist-section { margin-top:3px; }
+body.has-selected-video-folder #player-screen #playlist { grid-template-columns:repeat(2,minmax(0,1fr)); }
+@media(max-width:390px) {
+  #media-stage .video-frame { height:clamp(220px,40dvh,350px); }
+  #media-stage .video-frame.video-portrait { height:clamp(250px,43dvh,390px); }
+  #media-stage .video-overlay-actions { gap:3px!important; }
+  #media-stage .video-overlay-actions button { font-size:11px!important; }
+  #media-stage .video-overlay-actions .overlay-play { flex-basis:46px; min-width:46px!important; width:46px; height:46px!important; }
+}
+
+/* Fix 4: reclaim header space and use a compact full-height vertical video list. */
+#player-screen > .topbar, .app-shell > .topbar, .app-footer { display:none!important; }
+#player-screen { padding-top:8px!important; }
+#video-folder-strip .folder-chip:first-child { display:none!important; }
+#player-screen #playlist:not(.folder-card-list) { display:flex!important; flex-direction:column!important; align-items:stretch!important; gap:9px!important; }
+#player-screen #playlist .playlist-item.video-library-card { display:flex!important; flex-direction:row!important; align-items:stretch!important; min-height:96px!important; height:auto!important; }
+#player-screen #playlist .video-card-thumb { width:112px!important; height:84px!important; min-height:84px!important; flex:0 0 112px!important; align-self:center!important; margin:7px!important; border-radius:9px!important; background-size:cover!important; background-position:center!important; }
+#player-screen #playlist .video-card-thumb:before,
+#player-screen #playlist .video-card-thumb:after { display:none!important; content:none!important; }
+#player-screen #playlist .video-card-thumb .thumb-film-icon:not(.thumb-icon-over-image) { width:30px!important; height:30px!important; font-size:13px!important; }
+#player-screen #playlist .video-card-thumb .thumb-icon-over-image { display:none!important; }
+#player-screen #playlist .playlist-info.video-card-info { display:flex!important; flex-direction:column!important; justify-content:center!important; width:auto!important; min-width:0!important; min-height:84px!important; flex:1 1 auto!important; padding:8px 10px 8px 3px!important; }
+#player-screen #playlist .playlist-name { font-size:12px!important; line-height:1.35!important; -webkit-line-clamp:2; }
+#player-screen #playlist .playlist-meta { font-size:10px!important; }
+#player-screen .video-folder-strip { margin-top:2px!important; margin-bottom:5px!important; }
+@media(max-width:390px) {
+  #player-screen #playlist .video-card-thumb { width:100px!important; flex-basis:100px!important; height:76px!important; min-height:76px!important; }
+  #player-screen #playlist .playlist-item.video-library-card { min-height:88px!important; }
+}
+
+/* Fix 5: compact library, remove duplicate tabs/header, and keep bottom navigation stationary. */
+body:not(.portrait-video-mode) .topbar,
+body:not(.portrait-video-mode) .app-shell > .topbar { display:none !important; }
+body:not(.portrait-video-mode) #player-screen .video-library-toolbar .library-tabs { display:none !important; }
+body:not(.portrait-video-mode) #player-screen.player-screen:not(.hidden) {
+  height:100dvh !important;
+  padding-top:calc(8px + env(safe-area-inset-top)) !important;
+  padding-bottom:calc(74px + env(safe-area-inset-bottom)) !important;
+  gap:7px !important;
+}
+body:not(.portrait-video-mode) #player-screen > .library-topline { margin:0 0 4px !important; }
+body:not(.portrait-video-mode) #player-screen .library-title-wrap .eyebrow,
+body:not(.portrait-video-mode) #player-screen .library-title-wrap > p:last-child { display:none !important; }
+body:not(.portrait-video-mode) #player-screen .library-title-wrap h2 { font-size:23px !important; margin:0 !important; }
+body:not(.portrait-video-mode) #player-screen .video-library-toolbar { margin:0 !important; flex:0 0 auto !important; }
+body:not(.portrait-video-mode) #player-screen .library-search { height:42px !important; }
+body:not(.portrait-video-mode) #player-screen > #library-scan-panel { padding:7px 9px !important; min-height:48px !important; }
+body:not(.portrait-video-mode) #player-screen .video-folder-strip { flex:0 0 auto !important; max-width:100%; margin:0 0 3px !important; padding:0 1px 6px !important; }
+body:not(.portrait-video-mode) #player-screen > .playlist-section { flex:1 1 0 !important; min-height:0 !important; overflow:hidden !important; padding-top:6px !important; }
+body:not(.portrait-video-mode) #player-screen #playlist { flex:1 1 auto !important; min-height:0 !important; overflow-y:auto !important; overflow-x:hidden !important; padding-bottom:calc(12px + env(safe-area-inset-bottom)) !important; }
+body:not(.portrait-video-mode) #player-screen .playlist:not(.folder-card-list) { display:flex !important; flex-direction:column !important; gap:7px !important; }
+body:not(.portrait-video-mode) #player-screen .video-library-card { min-height:84px !important; max-height:100px !important; }
+body:not(.portrait-video-mode) #player-screen .video-card-thumb { width:104px !important; height:74px !important; min-height:74px !important; flex:0 0 104px !important; margin:5px !important; }
+body:not(.portrait-video-mode) #player-screen .video-card-thumb::before,
+body:not(.portrait-video-mode) #player-screen .video-card-thumb::after { display:none !important; content:none !important; }
+body:not(.portrait-video-mode) #player-screen .thumb-film-icon { width:30px !important; height:30px !important; font-size:13px !important; }
+body:not(.portrait-video-mode) #player-screen .video-card-info { min-height:74px !important; padding:7px 8px 7px 2px !important; }
+body:not(.portrait-video-mode) #player-screen .playlist-name { font-size:11px !important; }
+body:not(.portrait-video-mode) #player-screen .playlist-meta { font-size:9px !important; }
+body:not(.portrait-video-mode) #player-screen > .bottom-navigation {
+  position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important;
+  z-index:80 !important; height:64px !important; box-sizing:content-box !important;
+  flex:0 0 auto !important; margin:0 !important;
+  padding:8px 8px calc(8px + env(safe-area-inset-bottom)) !important;
+  border-top:1px solid #1d3b43 !important; background:#081318 !important;
+}
+body.portrait-video-mode #player-screen > .bottom-navigation { display:none !important; }
+
+/* Fix 6: isolate each video row so thumbnail layers cannot overlap adjacent cards. */
+#player-screen #playlist:not(.folder-card-list) {
+  display:flex !important; flex-direction:column !important; align-items:stretch !important;
+  justify-content:flex-start !important; gap:8px !important; position:relative !important;
+  isolation:isolate !important; overflow-x:hidden !important; overflow-y:auto !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card {
+  position:relative !important; inset:auto !important; z-index:0 !important;
+  display:flex !important; flex-direction:row !important; align-items:center !important;
+  flex:0 0 auto !important; width:100% !important; max-width:100% !important;
+  height:auto !important; min-height:90px !important; max-height:none !important;
+  margin:0 !important; padding:0 !important; transform:none !important;
+  contain:layout paint style !important; isolation:isolate !important; overflow:hidden !important;
+  box-sizing:border-box !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb {
+  position:relative !important; inset:auto !important; z-index:0 !important;
+  display:flex !important; flex:0 0 104px !important; width:104px !important;
+  min-width:104px !important; max-width:104px !important; height:74px !important;
+  min-height:74px !important; max-height:74px !important; margin:7px !important;
+  padding:0 !important; align-self:center !important; overflow:hidden !important;
+  transform:none !important; contain:strict !important; isolation:isolate !important;
+  background-repeat:no-repeat !important; background-position:center !important; background-size:cover !important;
+  border-radius:8px !important; pointer-events:none !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb::before,
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb::after {
+  display:none !important; content:none !important; background:none !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb > .thumb-film-icon,
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb > .thumb-duration {
+  position:absolute !important; z-index:1 !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .playlist-info.video-card-info {
+  position:relative !important; inset:auto !important; z-index:0 !important;
+  display:flex !important; flex:1 1 0 !important; flex-direction:column !important;
+  width:auto !important; min-width:0 !important; max-width:100% !important;
+  min-height:88px !important; height:auto !important; margin:0 !important;
+  padding:8px 10px 8px 2px !important; overflow:hidden !important;
+  transform:none !important; box-sizing:border-box !important; cursor:pointer !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card .playlist-name,
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card .playlist-meta {
+  position:relative !important; width:100% !important; max-width:100% !important;
+}
+@media(max-width:390px) {
+  #player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card > .video-card-thumb {
+    flex-basis:92px !important; width:92px !important; min-width:92px !important; max-width:92px !important;
+    height:68px !important; min-height:68px !important; max-height:68px !important;
+  }
+}
+
+/* Fix 7: compact controls, one-line scan status, tidy navigation and section-specific search. */
+#player-screen .library-scan-panel {
+  display:flex !important; align-items:center !important; gap:8px !important;
+  min-height:40px !important; height:auto !important; padding:6px 8px !important;
+  margin:0 0 6px !important; border-radius:12px !important;
+}
+#player-screen .library-scan-panel .scan-pulse { flex:0 0 9px !important; width:9px !important; height:9px !important; box-shadow:0 0 0 4px #39d5c41c !important; }
+#player-screen .library-scan-panel .scan-copy { min-width:0 !important; flex:1 1 auto !important; display:flex !important; align-items:center !important; gap:5px !important; }
+#player-screen .library-scan-panel .scan-copy strong { font-size:11px !important; line-height:1.2 !important; white-space:nowrap !important; overflow:hidden !important; text-overflow:ellipsis !important; }
+#player-screen .library-scan-panel .scan-copy p { display:none !important; }
+#player-screen .library-scan-panel .small-action { flex:0 0 auto !important; min-height:30px !important; height:30px !important; padding:0 8px !important; font-size:10px !important; border-radius:9px !important; }
+#player-screen .playlist-header { min-height:32px !important; margin:2px 0 6px !important; display:flex !important; align-items:center !important; justify-content:space-between !important; }
+#player-screen .playlist-header .eyebrow { margin:0 0 2px !important; font-size:9px !important; letter-spacing:1.5px !important; }
+#player-screen .playlist-header h3 { display:flex !important; align-items:center !important; gap:7px !important; margin:0 !important; font-size:18px !important; line-height:1.1 !important; }
+#player-screen #track-count { min-width:25px !important; height:24px !important; padding:0 7px !important; font-size:11px !important; }
+#player-screen #clear-list { display:none !important; }
+#player-screen > .bottom-navigation { position:fixed !important; left:0 !important; right:0 !important; bottom:0 !important; height:54px !important; padding:6px 12px calc(5px + env(safe-area-inset-bottom)) !important; border-top:0 !important; background:#081318 !important; }
+#player-screen > .bottom-navigation::before { content:""; position:absolute; top:0; left:calc(50% - 42px); width:84px; height:1px; background:#24515a; }
+#player-screen .bottom-nav-item { min-height:42px !important; padding:3px 4px !important; gap:1px !important; }
+#player-screen .bottom-nav-item span { font-size:17px !important; line-height:19px !important; }
+#player-screen .bottom-nav-item small { font-size:8px !important; line-height:10px !important; }
+#player-screen .local-footnote { display:none !important; }
+body.video-playing #player-screen .video-library-toolbar,
+body.video-playing #player-screen .video-folder-strip { display:none !important; }
+body.video-playing #player-screen > .library-topline { margin-bottom:2px !important; }
+body.folders-view #player-screen .video-library-toolbar .library-search { display:none !important; }
+body.folders-view #player-screen .video-library-toolbar { display:flex !important; }
+body.folders-view #player-screen .video-library-toolbar .library-tabs { flex:1 1 auto !important; }
+/* Inline portrait/player mode: seekbar and compact icon-only controls stay below the video. */
+#media-stage:not(.hidden) + .track-details { display:none !important; }
+#media-stage .video-overlay-controls:not(.overlay-on-video) {
+  position:relative !important; inset:auto !important; z-index:2 !important; display:block !important;
+  width:100% !important; margin:5px 0 0 !important; min-height:0 !important; border:0 !important;
+  border-radius:9px !important; background:transparent !important; color:#eafafa !important;
+  opacity:1 !important; pointer-events:auto !important; box-shadow:none !important;
+}
+#media-stage .video-overlay-controls:not(.overlay-on-video) .video-overlay-top { display:none !important; }
+#media-stage .video-overlay-controls:not(.overlay-on-video) .video-overlay-bottom { padding:0 1px 2px !important; }
+#media-stage .video-overlay-time { font-size:10px !important; margin:0 0 1px !important; }
+#media-stage .video-seekbar { height:4px !important; margin:2px 0 5px !important; }
+#media-stage .video-overlay-actions { display:flex !important; flex-wrap:nowrap !important; justify-content:space-between !important; align-items:center !important; gap:3px !important; width:100% !important; }
+#media-stage .video-overlay-actions button {
+  display:grid !important; place-items:center !important; flex:1 1 0 !important; min-width:0 !important;
+  width:auto !important; height:34px !important; min-height:34px !important; padding:0 !important;
+  border-radius:8px !important; background:#172b32 !important; border:1px solid #254b53 !important;
+  color:#dffcf8 !important; font-size:16px !important; line-height:1 !important; font-weight:700 !important;
+}
+#media-stage .video-overlay-actions .overlay-play { flex:1.15 1 0 !important; width:auto !important; height:34px !important; min-width:0 !important; border-radius:8px !important; font-size:17px !important; background:#13504d !important; border:1px solid #38bdb0 !important; }
+#media-stage .video-overlay-controls.overlay-on-video { position:absolute !important; inset:0 !important; z-index:20 !important; display:flex !important; flex-direction:column !important; justify-content:space-between !important; margin:0 !important; width:100% !important; height:100% !important; border:0 !important; border-radius:0 !important; background:linear-gradient(#0009,transparent 25%,transparent 55%,#000b) !important; }
+#media-stage .video-overlay-controls.overlay-on-video .video-overlay-top { display:flex !important; padding:8px !important; }
+#media-stage .video-overlay-controls.overlay-on-video .video-overlay-bottom { padding:8px 9px calc(8px + env(safe-area-inset-bottom)) !important; }
+#media-stage .video-overlay-controls.overlay-on-video .video-overlay-actions button { background:#0009 !important; border-color:#ffffff40 !important; color:#fff !important; }
+#media-stage .video-overlay-controls.overlay-on-video .video-overlay-actions .overlay-play { background:#ffffff35 !important; }
+#media-stage .video-frame:fullscreen { position:fixed !important; inset:0 !important; width:100vw !important; height:100dvh !important; max-height:none !important; min-height:0 !important; z-index:1000 !important; }
+#media-stage .video-frame:fullscreen .video-element { width:100% !important; height:100% !important; object-fit:contain !important; }
+@media(max-width:390px) {
+  #player-screen .library-scan-panel .scan-copy strong { font-size:10px !important; }
+  #media-stage .video-overlay-actions { gap:2px !important; }
+  #media-stage .video-overlay-actions button { height:31px !important; min-height:31px !important; font-size:14px !important; }
+  #media-stage .video-overlay-actions .overlay-play { height:31px !important; }
+}
+
+/* Fix 8: keep native Android taps responsive and allow smooth vertical scrolling. */
+#player-screen #playlist:not(.folder-card-list) {
+  touch-action: pan-y !important;
+  -webkit-overflow-scrolling: touch !important;
+  overscroll-behavior-y: contain !important;
+  scroll-behavior: auto !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card {
+  touch-action: pan-y !important;
+  -webkit-tap-highlight-color: transparent !important;
+  user-select: none !important;
+  -webkit-user-select: none !important;
+  cursor: pointer !important;
+}
+#player-screen #playlist:not(.folder-card-list) > .playlist-item.video-library-card .video-card-info {
+  pointer-events: none !important;
+}
+#media-stage #video-frame { touch-action: manipulation !important; }
+#media-stage #video-frame .video-element { touch-action: manipulation !important; }
+#media-stage .video-overlay-controls button { touch-action: manipulation !important; }
+
+/* Fix 9: make the lock state explicit and keep controls usable at touch size. */
+#media-stage .video-overlay-actions button { -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
+#media-stage .video-overlay-controls.controls-locked .video-overlay-actions button:not(#video-overlay-lock) { opacity:.42; pointer-events:none; }
+#media-stage .video-overlay-controls.controls-locked #video-overlay-lock { opacity:1; border-color:#39c7b8!important; background:#174a49!important; }
+#media-stage .video-overlay-actions #video-overlay-lock { font-size:17px!important; }
+
+
+/* Fix 10: make video seeking draggable on Android WebView without fighting timeupdate. */
+#media-stage .video-seekbar {
+  touch-action: none !important;
+  -webkit-appearance: auto !important;
+  pointer-events: auto !important;
+  position: relative !important;
+  z-index: 25 !important;
+  min-height: 22px !important;
+  padding: 7px 0 !important;
+  margin: 0 0 4px !important;
+  cursor: pointer !important;
+}
+#player-screen .playlist-header { min-height: 26px !important; margin: 1px 0 4px !important; padding: 0 !important; }
+#player-screen .playlist-header .eyebrow { display:none !important; }
+#player-screen .playlist-header h3 { font-size: 15px !important; line-height: 22px !important; }
+#player-screen .playlist-header h3 span { padding: 3px 7px !important; font-size: 11px !important; border-radius: 9px !important; }
+<<<<<<< HEAD
+
+/* Fix 13: ensure all playback actions exist and render as a compact, aligned toolbar. */
+#media-stage .video-overlay-actions { display:flex!important; flex-wrap:nowrap!important; align-items:center!important; justify-content:space-between!important; gap:2px!important; width:100%!important; min-width:0!important; }
+#media-stage .video-overlay-actions button { flex:1 1 0!important; min-width:0!important; max-width:none!important; width:auto!important; height:32px!important; min-height:32px!important; padding:0!important; border-radius:8px!important; font-family:system-ui,sans-serif!important; font-size:14px!important; line-height:1!important; overflow:hidden!important; }
+#media-stage .video-overlay-actions button:active { transform:scale(.94); filter:brightness(1.3); }
+#media-stage .video-overlay-actions #video-overlay-play { flex:1.15 1 0!important; }
+#media-stage .video-overlay-controls:not(.overlay-on-video) { position:relative!important; display:block!important; visibility:visible!important; }
+#media-stage .video-overlay-controls.overlay-on-video { position:absolute!important; inset:0!important; z-index:30!important; }
+#media-stage .video-overlay-controls.hidden { display:none!important; }
+#media-stage #video-overlay-volume-panel { display:flex; padding:4px 10px; }
+#media-stage #video-overlay-volume-panel.hidden { display:none!important; }
+@media(max-width:390px) {
+  #media-stage .video-overlay-actions { gap:1px!important; }
+  #media-stage .video-overlay-actions button { height:29px!important; min-height:29px!important; font-size:12px!important; border-radius:6px!important; }
+}
+=======
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2

@@ -1,3 +1,5 @@
+import { App } from '@capacitor/app';
+
 (() => {
   "use strict";
   const $ = (id) => document.getElementById(id);
@@ -7,7 +9,7 @@
   const state = {
     mode: "video", files: [], index: 0, objectUrls: [], allAudioFiles: [],
     favorites: loadFavorites(), favoritesOnly: false, shuffle: false,
-    repeat: "off", speed: 1, lastPlayed: null, videoLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "",
+    repeat: "off", speed: 1, lastPlayed: null, videoLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
     audioBoost: 1, videoBoost: 1, audioGainContext: null, videoGainContext: null,
     audioGainNode: null, videoGainNode: null, audioSourceNode: null, videoSourceNode: null
   };
@@ -145,6 +147,7 @@
         revokeUrls();
         state.files = normalized;
         state.index = 0;
+        state.videoSelectedFolder = "";
         renderPlaylist();
       }
       if (normalized.length) {
@@ -319,6 +322,7 @@
     $("current-name").textContent = file.name;
     $("current-type").textContent = `VIDEO FILE · ${formatBytes(file.size)}`;
     $("media-stage").classList.remove("hidden"); $("empty-library").classList.add("hidden");
+    document.body.classList.add("video-playing");
     $("artwork").classList.add("hidden"); $("audio-controls").classList.add("hidden");
     video.classList.remove("hidden"); $("video-status").classList.remove("hidden");
     renderPlaylist();
@@ -341,13 +345,45 @@
   function applyVideoFit() {
     video.style.objectFit = state.videoFit;
     const fitButton = $("video-overlay-fit");
-    if (fitButton) fitButton.textContent = state.videoFit === "contain" ? "⛶ Fit" : state.videoFit === "cover" ? "⛶ Fill" : "⛶ Stretch";
+    if (fitButton) {
+      fitButton.textContent = state.videoFit === "contain" ? "⛶" : state.videoFit === "cover" ? "▣" : "↔";
+      fitButton.setAttribute("aria-label", state.videoFit === "contain" ? "Fit video to screen" : state.videoFit === "cover" ? "Fill screen" : "Stretch video");
+    }
+  }
+  function playVideoRelative(delta) {
+    if (state.mode !== "video" || !state.files.length) return;
+    const queue = state.videoSelectedFolder ? state.files.filter(f => getFolder(f) === state.videoSelectedFolder) : state.files;
+    const current = state.files[state.index];
+    const currentIndex = queue.findIndex(f => fileKey(f) === fileKey(current));
+    const base = currentIndex >= 0 ? currentIndex : 0;
+    const next = (base + delta + queue.length) % queue.length;
+    const globalIndex = state.files.findIndex(f => fileKey(f) === fileKey(queue[next]));
+    playIndex(globalIndex >= 0 ? globalIndex : 0, true);
+  }
+  async function toggleLandscape() {
+    // Android WebView generally allows orientation locking only after a user gesture
+    // and often only while the media frame is fullscreen. Enter fullscreen first.
+    try {
+      const isLandscape = Boolean(screen.orientation?.type?.startsWith("landscape"));
+      if (!document.fullscreenElement) {
+        const target = $("video-frame");
+        if (target?.requestFullscreen) await target.requestFullscreen();
+        else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
+      }
+      if (screen.orientation?.lock) await screen.orientation.lock(isLandscape ? "portrait" : "landscape");
+    } catch (_) {
+      if (!document.fullscreenElement) await toggleVideoFullscreen();
+    }
   }
   function setVideoLock(locked) {
     state.videoLocked = Boolean(locked);
-    // Lock affects only the in-video overlay; native playback and seeking remain intact.
-    $("video-overlay-controls").classList.toggle("hidden", state.videoLocked);
+    const lockButton = $("video-overlay-lock");
+    lockButton.textContent = state.videoLocked ? "🔓" : "🔒";
+    lockButton.setAttribute("aria-label", state.videoLocked ? "Unlock controls" : "Lock controls");
+    lockButton.setAttribute("title", state.videoLocked ? "Unlock controls" : "Lock controls");
+    $("video-overlay-controls").classList.toggle("controls-locked", state.videoLocked);
     video.controls = false;
+    if (state.videoLocked && state.controlsTimer) clearTimeout(state.controlsTimer);
   }
   async function toggleVideoFullscreen() {
     try {
@@ -400,19 +436,53 @@
     state.files = queue;
     playIndex((idx - 1 + queue.length) % queue.length, true, queue);
   }
+  function renderVideoFolderStrip() {
+    const strip = $("video-folder-strip");
+    if (!strip || state.mode !== "video") return;
+    const folders = [...new Set(state.files.map(getFolder))].sort((a,b) => a.localeCompare(b));
+    strip.replaceChildren();
+    folders.forEach(folder => { const chip=document.createElement("button"); chip.type="button"; chip.className=`folder-chip${state.videoSelectedFolder===folder ? " selected" : ""}`; chip.textContent=folder.split("/").filter(Boolean).pop() || folder; chip.title=folder; chip.addEventListener("click", () => { state.videoSelectedFolder=folder; state.videoLibraryView="videos"; updateVideoLibraryTabs(); renderPlaylist(); }); strip.appendChild(chip); });
+    strip.classList.toggle("hidden", !folders.length);
+    document.body.classList.toggle("has-selected-video-folder", Boolean(state.videoSelectedFolder));
+  }
+  async function loadNativeThumbnail(node, uri) {
+    if (!node || !uri || node.dataset.thumbnailLoaded === "1") return;
+    if (state.thumbnailCache.has(uri)) { applyThumbnail(node, state.thumbnailCache.get(uri)); return; }
+    node.dataset.thumbnailLoaded = "1";
+    try {
+      const plugin = window.Capacitor?.Plugins?.MediaLibraryScanner;
+      if (!plugin || typeof plugin.getThumbnail !== "function") return;
+      const result = await plugin.getThumbnail({ uri });
+      const data = result?.thumbnail || "";
+      if (data) { state.thumbnailCache.set(uri, data); applyThumbnail(node, data); }
+    } catch (e) { console.warn("Video thumbnail unavailable", e); }
+  }
+  function applyThumbnail(node, data) {
+    if (!node || !data) return;
+    node.style.backgroundImage = `url("${data}")`;
+    node.style.backgroundSize = "cover";
+    node.style.backgroundPosition = "center";
+    node.querySelector(".thumb-film-icon")?.classList.add("thumb-icon-over-image");
+  }
+
   function renderPlaylist() {
     const list = $("playlist");
     let shown = state.mode === "audio" ? currentAudioList() : state.files;
     if (state.mode === "video") {
       const q = state.videoSearch.trim().toLocaleLowerCase();
       if (q) shown = shown.filter(file => `${file.name || ""} ${getFolder(file)}`.toLocaleLowerCase().includes(q));
-      if (state.videoLibraryView === "folders") {
+      if (state.videoLibraryView === "folders" && !state.videoSelectedFolder) {
+        state.videoSelectedFolder = [...new Set(state.files.map(getFolder))].sort((a,b) => a.localeCompare(b))[0] || "";
+      }
+      if (state.videoSelectedFolder) shown = shown.filter(file => getFolder(file) === state.videoSelectedFolder);
+      renderVideoFolderStrip();
+      if (state.videoLibraryView === "folders" && !state.videoSelectedFolder) {
         const folderNames = [...new Set(shown.map(getFolder))].sort((a,b) => a.localeCompare(b));
         list.classList.add("folder-card-list");
         $("track-count").textContent = String(folderNames.length);
         list.replaceChildren();
         if (!folderNames.length) { const empty = document.createElement("div"); empty.className = "playlist-empty"; empty.textContent = "No folders found."; list.appendChild(empty); return; }
-        folderNames.forEach(folder => { const filesInFolder = state.files.filter(file => getFolder(file) === folder); const card = document.createElement("button"); card.type = "button"; card.className = "folder-card"; card.innerHTML = '<span class="folder-card-icon">▤</span><span class="folder-card-copy"></span><span class="folder-card-arrow">›</span>'; card.querySelector(".folder-card-copy").textContent = folder; const count = document.createElement("small"); count.textContent = `${filesInFolder.length} videos`; card.querySelector(".folder-card-copy").appendChild(count); card.addEventListener("click", () => { state.videoSearch = folder; $("video-search").value = folder; state.videoLibraryView = "videos"; updateVideoLibraryTabs(); renderPlaylist(); }); list.appendChild(card); }); return;
+        folderNames.forEach(folder => { const filesInFolder = state.files.filter(file => getFolder(file) === folder); const card = document.createElement("button"); card.type = "button"; card.className = "folder-card"; card.innerHTML = '<span class="folder-card-icon">▤</span><span class="folder-card-copy"></span><span class="folder-card-arrow">›</span>'; card.querySelector(".folder-card-copy").textContent = folder; const count = document.createElement("small"); count.textContent = `${filesInFolder.length} videos`; card.querySelector(".folder-card-copy").appendChild(count); card.addEventListener("click", () => { state.videoSelectedFolder = folder; state.videoLibraryView = "videos"; $("video-search").value = ""; state.videoSearch = ""; updateVideoLibraryTabs(); renderPlaylist(); }); list.appendChild(card); }); return;
       }
     }
     list.classList.toggle("folder-card-list", false);
@@ -433,12 +503,31 @@
 
       if (isVideo) {
         // Explicit inline layout avoids legacy MP3 CSS rules collapsing video card content.
-        item.style.cssText = "display:flex;flex-direction:column;align-items:stretch;position:relative;min-width:0;min-height:150px;height:auto;padding:0;overflow:hidden;border:1px solid #303247;border-radius:15px;background:#141622;color:#f5f3ff;box-sizing:border-box;cursor:pointer;";
+        item.style.cssText = "display:flex;flex-direction:row;align-items:stretch;position:relative;min-width:0;min-height:86px;height:auto;padding:0;overflow:hidden;border:1px solid #24464e;border-radius:13px;background:linear-gradient(110deg,#10232a,#0c171d);color:#f5f3ff;box-sizing:border-box;cursor:pointer;";
         const thumb = document.createElement("div");
         thumb.className = "video-card-thumb";
         thumb.setAttribute("aria-hidden", "true");
-        thumb.style.cssText = "display:flex;align-items:center;justify-content:center;position:relative;width:100%;height:clamp(92px,27vw,136px);min-height:92px;flex:0 0 auto;overflow:hidden;background:linear-gradient(145deg,#242943 0%,#171b2e 52%,#10121d 100%);";
+        thumb.style.cssText = "display:flex;align-items:center;justify-content:center;position:relative;width:112px;height:84px;min-height:84px;flex:0 0 112px;align-self:center;margin:7px;overflow:hidden;border-radius:9px;background:linear-gradient(145deg,#18363c 0%,#12252c 52%,#0c181e 100%);";
         thumb.innerHTML = '<span class="thumb-film-icon" style="display:grid;place-items:center;width:42px;height:42px;border-radius:50%;background:rgba(139,124,255,.22);border:1px solid rgba(177,166,255,.5);color:#fff;font-size:17px;">▶</span><span class="thumb-duration" style="position:absolute;right:7px;bottom:7px;padding:3px 6px;border-radius:5px;background:rgba(0,0,0,.65);color:#fff;font-size:9px;font-weight:700;letter-spacing:.06em;">VIDEO</span>';
+        if (file.uri && file.nativeMedia) {
+          thumb.dataset.mediaUri = file.uri;
+          thumb.dataset.thumbnailPending = "1";
+          thumb.style.background = "linear-gradient(145deg,#242943 0%,#171b2e 52%,#10121d 100%)";
+          if (!state.thumbnailObserver && "IntersectionObserver" in window) {
+            state.thumbnailObserver = new IntersectionObserver(entries => entries.forEach(entry => {
+              if (!entry.isIntersecting) return;
+              const node = entry.target; state.thumbnailObserver.unobserve(node);
+              loadNativeThumbnail(node, node.dataset.mediaUri);
+            }), { root: list, rootMargin: "180px" });
+          }
+          if (state.thumbnailObserver) state.thumbnailObserver.observe(thumb);
+          else loadNativeThumbnail(thumb, file.uri);
+        } else if (file instanceof Blob) {
+          const localUrl = URL.createObjectURL(file);
+          const image = document.createElement("video"); image.muted = true; image.preload = "metadata"; image.src = localUrl;
+          image.addEventListener("loadeddata", () => { try { image.currentTime = Math.min(1, image.duration || 1); } catch (_) {} }, { once:true });
+          image.addEventListener("seeked", () => { try { const c = document.createElement("canvas"); c.width=320; c.height=180; c.getContext("2d").drawImage(image,0,0,320,180); thumb.style.backgroundImage=`url(${c.toDataURL("image/jpeg",.75)})`; thumb.style.backgroundSize="cover"; } catch (_) {} URL.revokeObjectURL(localUrl); }, { once:true });
+        }
         item.appendChild(thumb);
       }
 
@@ -461,13 +550,13 @@
       const info = document.createElement("div");
       info.className = isVideo ? "playlist-info video-card-info" : "playlist-info";
       if (isVideo) {
-        info.style.cssText = "display:block;position:relative;box-sizing:border-box;width:100%;min-width:0;min-height:58px;flex:0 0 auto;padding:10px 10px 12px;overflow:hidden;background:transparent;color:#f5f3ff;cursor:pointer;";
+        info.style.cssText = "display:flex;flex-direction:column;justify-content:center;position:relative;box-sizing:border-box;width:auto;min-width:0;min-height:84px;flex:1 1 auto;padding:8px 10px 8px 3px;overflow:hidden;background:transparent;color:#f5f3ff;cursor:pointer;";
       }
-      info.addEventListener("click", () => {
-        if (state.mode === "audio") {
-          const queue = currentAudioList();
-          playIndex(queue.findIndex(f => fileKey(f) === fileKey(file)), true, queue);
-        } else playIndex(state.files.findIndex(f => fileKey(f) === fileKey(file)), true);
+      // Video rows have one click handler on the card only. Avoid nested handlers
+      // calling playIndex twice, which can race native preparePlayback() and pause playback.
+      if (!isVideo) info.addEventListener("click", () => {
+        const queue = currentAudioList();
+        playIndex(queue.findIndex(f => fileKey(f) === fileKey(file)), true, queue);
       });
 
       const name = document.createElement("div");
@@ -524,16 +613,17 @@
 
   function updateVideoLibraryTabs() {
     const folders = state.videoLibraryView === "folders";
+    document.body.classList.toggle("folders-view", folders);
     $("video-tab-all").classList.toggle("selected", !folders); $("video-tab-folders").classList.toggle("selected", folders);
     $("video-tab-all").setAttribute("aria-selected", String(!folders)); $("video-tab-folders").setAttribute("aria-selected", String(folders));
     $("bottom-library").classList.toggle("active", !folders); $("bottom-folders").classList.toggle("active", folders);
   }
   $("video-search").addEventListener("input", e => { state.videoSearch = e.target.value || ""; renderPlaylist(); });
-  $("video-tab-all").addEventListener("click", () => { state.videoLibraryView = "videos"; updateVideoLibraryTabs(); renderPlaylist(); });
+  $("video-tab-all").addEventListener("click", () => { state.videoLibraryView = "videos"; state.videoSelectedFolder = ""; updateVideoLibraryTabs(); renderPlaylist(); });
   $("video-tab-folders").addEventListener("click", () => { state.videoLibraryView = "folders"; updateVideoLibraryTabs(); renderPlaylist(); });
-  $("bottom-library").addEventListener("click", () => { state.videoLibraryView = "videos"; updateVideoLibraryTabs(); renderPlaylist(); });
-  $("bottom-folders").addEventListener("click", () => { state.videoLibraryView = "folders"; updateVideoLibraryTabs(); renderPlaylist(); });
-  $("bottom-rescan").addEventListener("click", scanDeviceLibrary);
+  $("bottom-library").addEventListener("click", () => { document.body.classList.remove("video-playing"); state.videoLibraryView = "videos"; state.videoSelectedFolder = ""; updateVideoLibraryTabs(); renderPlaylist(); });
+  $("bottom-folders").addEventListener("click", () => { document.body.classList.remove("video-playing"); state.videoLibraryView = "folders"; updateVideoLibraryTabs(); renderPlaylist(); });
+  $("bottom-rescan").addEventListener("click", () => { document.body.classList.remove("video-playing"); scanDeviceLibrary(); });
   $("rescan-library-top").addEventListener("click", scanDeviceLibrary);
   $("choose-video").addEventListener("click", () => { openMode("video"); scanDeviceLibrary(); });
   $("back-home")?.addEventListener("click", () => {
@@ -584,14 +674,36 @@
   // a missing audio-only control cannot abort all player initialization.
   $("audio-volume-boost")?.addEventListener("input", e => setVolumeBoost("audio", e.target.value));
   $("video-overlay-lock").addEventListener("click", () => setVideoLock(!state.videoLocked));
-  $("video-overlay-rewind").addEventListener("click", () => seekVideoBy(-10));
-  $("video-overlay-forward").addEventListener("click", () => seekVideoBy(10));
+  $("video-overlay-previous").addEventListener("click", () => playVideoRelative(-1));
+  $("video-overlay-rewind").addEventListener("click", () => seekVideoBy(-15));
+  $("video-overlay-forward").addEventListener("click", () => seekVideoBy(15));
+  $("video-overlay-next").addEventListener("click", () => playVideoRelative(1));
+  $("video-overlay-zoom").addEventListener("click", () => { state.videoFit = state.videoFit === "cover" ? "contain" : "cover"; applyVideoFit(); });
+  $("video-overlay-landscape").addEventListener("click", toggleLandscape);
   $("video-overlay-play").addEventListener("click", () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
-  $("video-overlay-fit").addEventListener("click", () => { state.videoFit = state.videoFit === "contain" ? "cover" : state.videoFit === "cover" ? "fill" : "contain"; applyVideoFit(); $("video-overlay-fit").textContent = state.videoFit === "contain" ? "⛶ Fit" : state.videoFit === "cover" ? "⛶ Fill" : "⛶ Stretch"; });
+  $("video-overlay-fit").addEventListener("click", () => { state.videoFit = "contain"; applyVideoFit(); });
+<<<<<<< HEAD
+  $("video-overlay-fullscreen")?.addEventListener("click", toggleVideoFullscreen);
+  $("video-overlay-volume")?.addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
+  $("video-overlay-volume-slider")?.addEventListener("input", e => { video.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100)); const volumeButton = $("video-overlay-volume"); if (volumeButton) volumeButton.textContent = video.volume === 0 ? "🔇" : "🔊"; });
+=======
   $("video-overlay-fullscreen").addEventListener("click", toggleVideoFullscreen);
   $("video-overlay-volume").addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
   $("video-overlay-volume-slider").addEventListener("input", e => { video.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100)); $("video-overlay-volume").textContent = video.volume === 0 ? "🔇" : "🔊"; });
-  $("video-seekbar").addEventListener("input", () => { if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number($("video-seekbar").value) / 1000 * video.duration; });
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+  const videoSeekbar = $("video-seekbar");
+  // Keep the thumb under the user's finger while dragging; timeupdate must not
+  // overwrite the range value until the gesture finishes.
+  const beginVideoSeek = () => { state.videoSeeking = true; };
+  const finishVideoSeek = () => { if (!state.videoSeeking) return; state.videoSeeking = false; if (Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number(videoSeekbar.value) / 1000 * video.duration; };
+  videoSeekbar.addEventListener("pointerdown", beginVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("pointerup", finishVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("pointercancel", finishVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("touchstart", beginVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("touchend", finishVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("touchcancel", finishVideoSeek, { passive: true });
+  videoSeekbar.addEventListener("change", finishVideoSeek);
+  videoSeekbar.addEventListener("input", () => { if (state.videoSeeking && Number.isFinite(video.duration) && video.duration > 0) video.currentTime = Number(videoSeekbar.value) / 1000 * video.duration; });
   video.addEventListener("error", () => {
     const code = video.error?.code;
     const detail = code === 4 ? "This video format/codec is not supported by this Android device." : "Could not open this video. Check file access and format.";
@@ -624,6 +736,7 @@
     const status = $("video-status");
     $("video-overlay-title").textContent = state.files[state.index]?.name || "Now playing";
     $("video-overlay-controls").classList.remove("hidden");
+    positionVideoControls();
     $("video-total-time").textContent = formatTime(video.duration);
     if (status) status.textContent = `Video loaded · ${video.videoWidth}×${video.videoHeight} · ${formatTime(video.duration)}`;
   });
@@ -640,32 +753,77 @@
     if (video.readyState < 3) $("video-status").textContent = "Loading video frames…";
   });
   video.addEventListener("dblclick", e => {
-    if (state.videoLocked) { setVideoLock(false); return; }
+    if (state.videoLocked) { setVideoLock(false); showVideoControls(true); return; }
     const rect = video.getBoundingClientRect();
     seekVideoBy(e.clientX < rect.left + rect.width / 2 ? -10 : 10);
   });
-  // Mobile double-tap zones: left half rewinds 10s, right half advances 10s.
-  video.addEventListener("touchend", e => {
-    if (e.changedTouches.length !== 1) return;
-    if (state.videoLocked) { setVideoLock(false); e.preventDefault(); return; }
-    const now = Date.now(), touch = e.changedTouches[0], rect = video.getBoundingClientRect();
-    if (now - state.lastVideoTap < 320) {
-      seekVideoBy(touch.clientX < rect.left + rect.width / 2 ? -10 : 10);
-      state.lastVideoTap = 0;
-      e.preventDefault();
-    } else state.lastVideoTap = now;
-  }, { passive: false });
+  // Smooth, non-blocking touch behavior: do not preventDefault() on touchend,
+  // because Android WebView may then cancel taps or interfere with vertical scrolling.
+  const videoFrame = $("video-frame");
+  function showVideoControls(show) {
+    const controls = $("video-overlay-controls");
+    if (!controls || state.videoLocked) return;
+    const immersive = Boolean(document.fullscreenElement) || videoFrame.classList.contains("is-fullscreen");
+    if (!immersive) { controls.classList.remove("hidden"); return; }
+    controls.classList.toggle("hidden", !show);
+    if (state.controlsTimer) clearTimeout(state.controlsTimer);
+    state.controlsTimer = null;
+    if (show) state.controlsTimer = setTimeout(() => {
+      if (!state.videoLocked) controls.classList.add("hidden");
+    }, 5000);
+  }
+  const videoOverlay = $("video-overlay-controls");
+  if (videoOverlay && videoFrame.parentElement) videoFrame.parentElement.insertBefore(videoOverlay, $("track-details"));
+  let lastFrameTap = 0;
+  videoFrame.addEventListener("click", e => {
+    if (e.target.closest(".video-overlay-controls")) return;
+    const immersive = Boolean(document.fullscreenElement) || videoFrame.classList.contains("is-fullscreen");
+    if (immersive) {
+      if (state.videoLocked) return;
+      showVideoControls($("video-overlay-controls").classList.contains("hidden"));
+      return;
+    }
+    // Inline player: tapping the picture toggles playback; controls remain below it.
+    if (e.target === video || e.target.closest(".video-element")) {
+      const now = Date.now();
+      if (now - lastFrameTap < 320) {
+        const rect = video.getBoundingClientRect();
+        seekVideoBy(e.clientX < rect.left + rect.width / 2 ? -15 : 15);
+      } else if (video.paused) {
+        video.play().catch(err => {
+          const status = $("video-status");
+          if (status) { status.textContent = err?.message || "Tap Play to start this video."; status.classList.remove("hidden"); }
+        });
+      } else {
+        video.pause();
+      }
+      lastFrameTap = now;
+    }
+  });
+  function positionVideoControls() {
+    const frame = $("video-frame"), controls = $("video-overlay-controls");
+    if (!frame || !controls) return;
+    const immersive = Boolean(document.fullscreenElement) || frame.classList.contains("is-fullscreen");
+    if (immersive) {
+      if (controls.parentElement !== frame) frame.appendChild(controls);
+      controls.classList.add("overlay-on-video");
+    } else {
+      if (controls.parentElement !== frame.parentElement) frame.parentElement.insertBefore(controls, $("track-details"));
+      controls.classList.remove("overlay-on-video");
+    }
+  }
   document.addEventListener("fullscreenchange", () => {
     const frame = $("video-frame");
     if (frame) frame.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
+    positionVideoControls();
+    if (document.fullscreenElement) showVideoControls(true);
+  });
+  screen.orientation?.addEventListener?.("change", () => {
+    const frame = $("video-frame");
+    if (frame && document.fullscreenElement) frame.classList.add("is-fullscreen");
+    positionVideoControls();
   });
 
-  $("clear-list").addEventListener("click", () => {
-    audio.pause(); video.pause(); revokeUrls(); state.files = []; state.allAudioFiles = []; state.index = 0;
-    audio.removeAttribute("src"); video.removeAttribute("src"); audio.load(); video.load();
-    $("media-stage").classList.add("hidden"); $("empty-library").classList.remove("hidden");
-    rebuildFolderFilter(); renderPlaylist();
-  });
   $("seekbar").addEventListener("input", () => {
     if (Number.isFinite(audio.duration) && audio.duration > 0) audio.currentTime = (Number($("seekbar").value) / 1000) * audio.duration;
   });
@@ -690,7 +848,7 @@
   video.addEventListener("timeupdate", () => {
     $("video-current-time").textContent = formatTime(video.currentTime);
     $("video-total-time").textContent = formatTime(video.duration);
-    $("video-seekbar").value = Number.isFinite(video.duration) && video.duration > 0 ? String(Math.round(video.currentTime / video.duration * 1000)) : "0";
+    if (!state.videoSeeking) $("video-seekbar").value = Number.isFinite(video.duration) && video.duration > 0 ? String(Math.round(video.currentTime / video.duration * 1000)) : "0";
     const status = $("video-status");
     if (status && Number.isFinite(video.duration) && video.duration > 0) {
       status.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)} · Use video controls to seek`;
@@ -709,6 +867,72 @@
   setVolumeBoost("audio", 100);
   setVolumeBoost("video", 100);
   updateModes();
+<<<<<<< HEAD
+  // One shared handler is called by MainActivity's native Back override.
+  // Keep Capacitor's event as a fallback for environments without the native bridge.
+  let backHandling = false;
+  window.handleMerajAndroidBack = async function () {
+    if (backHandling) return;
+    backHandling = true;
+    try {
+=======
+  // Register exactly one Android Back handler. Duplicate listeners can consume
+  // the same press and make the system Back button appear unresponsive.
+  try {
+    App.addListener("backButton", async () => {
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+      const frame = $("video-frame");
+      const stage = $("media-stage");
+      if (document.fullscreenElement) {
+        try { await document.exitFullscreen(); } catch (_) {}
+        try { screen.orientation?.unlock?.(); } catch (_) {}
+        return;
+      }
+      if (frame && frame.classList.contains("is-fullscreen")) {
+        frame.classList.remove("is-fullscreen");
+        try { screen.orientation?.unlock?.(); } catch (_) {}
+        positionVideoControls();
+        showVideoControls(false);
+        return;
+      }
+      if (stage && !stage.classList.contains("hidden")) {
+<<<<<<< HEAD
+        video.pause(); audio.pause();
+=======
+        video.pause();
+        audio.pause();
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+        stage.classList.add("hidden");
+        if (frame) frame.classList.add("hidden");
+        document.body.classList.remove("video-playing");
+        if (state.videoLocked) setVideoLock(false);
+        try { screen.orientation?.unlock?.(); } catch (_) {}
+        renderPlaylist();
+        return;
+      }
+      if (!playerScreen.classList.contains("hidden")) {
+<<<<<<< HEAD
+        // Stay on the library; Android's normal task navigation can exit if needed.
+        return;
+      }
+      try { await App.exitApp(); } catch (_) {}
+    } finally {
+      setTimeout(() => { backHandling = false; }, 250);
+    }
+  };
+  try {
+    App.addListener("backButton", () => window.handleMerajAndroidBack?.());
+  } catch (_) { /* Native App plugin unavailable in browser preview. */ }
+=======
+        // On the library, Back exits the app as expected.
+        try { await App.exitApp(); } catch (_) {}
+        return;
+      }
+      try { await App.exitApp(); } catch (_) {}
+    });
+  } catch (_) { /* Native App plugin is unavailable in browser preview. */ }
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
+
   renderPlaylist();
   // Video-only app: open the local video library and request permission on startup.
   openMode("video");

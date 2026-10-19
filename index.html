@@ -10,7 +10,7 @@
 </head>
 <body>
   <div class="app-shell">
-    <header class="topbar">
+    <header class="topbar hidden">
       <div class="round-brand" role="img" aria-label="Professional Local Media Player logo">
         <svg class="brand-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
           <defs>
@@ -74,6 +74,8 @@
           <button id="rescan-library" class="small-action" type="button">↻ Rescan</button>
         </div>
 
+        <div id="video-folder-strip" class="video-folder-strip" aria-label="Video folders" role="tablist"></div>
+
         <div id="audio-library-tools" class="audio-library-tools hidden" aria-hidden="true">
           <div class="library-actions">
             <span class="small-action library-folder-label">▣ Device folders</span>
@@ -104,7 +106,11 @@
         <div id="media-stage" class="media-stage hidden">
           <div id="artwork" class="artwork hidden" aria-hidden="true"><span>▶</span></div>
           <div id="video-frame" class="video-frame hidden">
-            <div id="video-overlay-controls" class="video-overlay-controls hidden"><div class="video-overlay-top"><span id="video-overlay-title">Now playing</span><button id="video-overlay-lock" type="button" aria-label="Lock controls">⌑</button></div><div class="video-overlay-bottom"><div class="video-overlay-time"><span id="video-current-time">0:00</span><span id="video-total-time">0:00</span></div><input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video"><div class="video-overlay-actions"><button id="video-overlay-rewind" type="button" aria-label="Rewind 10 seconds">↶ 10</button><button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video">▶</button><button id="video-overlay-forward" type="button" aria-label="Forward 10 seconds">10 ↷</button><button id="video-overlay-fit" type="button" aria-label="Change video fit">⛶ Fit</button><button id="video-overlay-fullscreen" type="button" aria-label="Toggle fullscreen">⛶</button><button id="video-overlay-volume" type="button" aria-label="Show volume">🔊</button></div><div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden"><input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume"></div></div></div>
+<<<<<<< HEAD
+            <div id="video-overlay-controls" class="video-overlay-controls hidden"><div class="video-overlay-top"><span id="video-overlay-title">Now playing</span></div><div class="video-overlay-bottom"><div class="video-overlay-time"><span id="video-current-time">0:00</span><span id="video-total-time">0:00</span></div><input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video"><div class="video-overlay-actions"><button id="video-overlay-previous" type="button" aria-label="Previous video" title="Previous video">⏮</button><button id="video-overlay-rewind" type="button" aria-label="Seek back 15 seconds" title="Back 15 seconds">↶</button><button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video" title="Play/Pause">▶</button><button id="video-overlay-forward" type="button" aria-label="Seek forward 15 seconds" title="Forward 15 seconds">↷</button><button id="video-overlay-next" type="button" aria-label="Next video" title="Next video">⏭</button><button id="video-overlay-zoom" type="button" aria-label="Zoom video" title="Zoom">⌕</button><button id="video-overlay-fit" type="button" aria-label="Fit video to screen" title="Fit">⛶</button><button id="video-overlay-fullscreen" type="button" aria-label="Fullscreen" title="Fullscreen">⛶</button><button id="video-overlay-volume" type="button" aria-label="Volume" title="Volume">🔊</button><button id="video-overlay-landscape" type="button" aria-label="Rotate to landscape" title="Landscape">⤢</button><button id="video-overlay-lock" type="button" aria-label="Lock controls" title="Lock controls">🔒</button></div><div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden"><input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume"></div></div></div>
+=======
+            <div id="video-overlay-controls" class="video-overlay-controls hidden"><div class="video-overlay-top"><span id="video-overlay-title">Now playing</span></div><div class="video-overlay-bottom"><div class="video-overlay-time"><span id="video-current-time">0:00</span><span id="video-total-time">0:00</span></div><input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video"><div class="video-overlay-actions"><button id="video-overlay-previous" type="button" aria-label="Previous video" title="Previous video">⏮</button><button id="video-overlay-rewind" type="button" aria-label="Seek back 15 seconds" title="Back 15 seconds">↶</button><button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video" title="Play/Pause">▶</button><button id="video-overlay-forward" type="button" aria-label="Seek forward 15 seconds" title="Forward 15 seconds">↷</button><button id="video-overlay-next" type="button" aria-label="Next video" title="Next video">⏭</button><button id="video-overlay-zoom" type="button" aria-label="Zoom video" title="Zoom">⌕</button><button id="video-overlay-fit" type="button" aria-label="Fit video to screen" title="Fit">⛶</button><button id="video-overlay-landscape" type="button" aria-label="Rotate to landscape" title="Landscape">↻</button><button id="video-overlay-lock" type="button" aria-label="Lock controls" title="Lock controls">🔒</button></div><div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden"><input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume"></div></div></div>
+>>>>>>> 9dfd25251da4f3919cd8c783f4dbc42c0528eba2
             <video id="video-element" class="video-element hidden" playsinline preload="metadata"></video>
           </div>
           <div class="track-details">
@@ -138,7 +144,7 @@
         </div>
 
         <section class="playlist-section">
-          <div class="playlist-header"><div><p class="eyebrow">YOUR DEVICE</p><h3>Videos <span id="track-count">0</span></h3></div><button id="clear-list" class="text-button" type="button">Clear</button></div>
+          <div class="playlist-header"><div><p class="eyebrow">YOUR DEVICE</p><h3>Videos <span id="track-count">0</span></h3></div></div>
           <div id="playlist" class="playlist"><div class="playlist-empty">Your scanned videos will appear here.</div></div>
         </section>
         <nav class="bottom-navigation" aria-label="Main navigation"><button class="bottom-nav-item active" type="button" id="bottom-library"><span>▦</span><small>Library</small></button><button class="bottom-nav-item" type="button" id="bottom-folders"><span>▤</span><small>Folders</small></button><button class="bottom-nav-item" type="button" id="bottom-rescan"><span>⟳</span><small>Rescan</small></button></nav><p class="local-footnote">Files are opened from your device. This app does not upload or share them.</p>
