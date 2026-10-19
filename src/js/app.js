@@ -1,4 +1,5 @@
 import { App } from '@capacitor/app';
+import { ScreenOrientation } from '@capacitor/screen-orientation';
 
 (() => {
   "use strict";
@@ -9,7 +10,7 @@ import { App } from '@capacitor/app';
   const state = {
     mode: "video", files: [], index: 0, objectUrls: [], allAudioFiles: [],
     favorites: loadFavorites(), favoritesOnly: false, shuffle: false,
-    repeat: "off", speed: 1, lastPlayed: null, videoLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
+    repeat: "off", speed: 1, videoPlaybackSpeed: 1, lastPlayed: null, videoLocked: false, videoOrientationLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
     audioBoost: 1, videoBoost: 1, audioGainContext: null, videoGainContext: null,
     audioGainNode: null, videoGainNode: null, audioSourceNode: null, videoSourceNode: null
   };
@@ -317,6 +318,8 @@ import { App } from '@capacitor/app';
       video.classList.remove("hidden");
       video.style.display = "block";
       video.src = videoUrl;
+      video.playbackRate = state.videoPlaybackSpeed || 1;
+      if ("defaultPlaybackRate" in video) video.defaultPlaybackRate = state.videoPlaybackSpeed || 1;
       video.load();
     } else {
       video.removeAttribute("src");
@@ -385,61 +388,51 @@ import { App } from '@capacitor/app';
     const globalIndex = state.files.findIndex(f => fileKey(f) === fileKey(queue[next]));
     playIndex(globalIndex >= 0 ? globalIndex : 0, true);
   }
-  let landscapeModeActive = false;
   async function toggleLandscape() {
-    const frame = $("video-frame");
-    const button = $("video-overlay-landscape");
-    if (!frame) return;
-
-    // Screen orientation locking generally requires a user gesture and fullscreen.
-    // Keep errors visible to the user instead of silently pretending rotation worked.
+    // Use the native Capacitor Screen Orientation plugin in the installed APK.
+    // First tap forces landscape; the next tap unlocks and restores sensor rotation.
+    const target = $("video-frame");
     try {
-      if (!document.fullscreenElement) {
-        if (frame.requestFullscreen) {
-          await frame.requestFullscreen();
-        } else if (video.webkitEnterFullscreen) {
-          video.webkitEnterFullscreen();
-          return; // iOS native fullscreen owns orientation from this point.
-        } else {
-          throw new Error("Fullscreen is not supported by this browser.");
-        }
+      if (!document.fullscreenElement && target?.requestFullscreen) {
+        try { await target.requestFullscreen(); } catch (_) { /* plugin can still lock orientation */ }
       }
-
-      if (!screen.orientation || typeof screen.orientation.lock !== "function") {
-        frame.classList.toggle("manual-landscape", !landscapeModeActive);
-        landscapeModeActive = !landscapeModeActive;
-        if (button) {
-          button.setAttribute("aria-label", landscapeModeActive ? "Return to portrait layout" : "Rotate to landscape");
-          button.setAttribute("title", landscapeModeActive ? "Portrait layout" : "Landscape");
-          button.classList.toggle("is-active", landscapeModeActive);
-        }
-        const status = $("video-status");
-        if (status) status.textContent = "Device rotation lock is not supported here; using video layout fallback.";
-        return;
-      }
-
-      if (!landscapeModeActive) {
-        await screen.orientation.lock("landscape");
-        landscapeModeActive = true;
+      if (!state.videoOrientationLocked) {
+        await ScreenOrientation.lock({ orientation: 'landscape' });
+        state.videoOrientationLocked = true;
+        const button = $("video-overlay-landscape");
+        button.setAttribute('aria-label', 'Unlock screen rotation');
+        button.setAttribute('title', 'Landscape locked — tap to restore auto-rotate');
+        button.classList.add('is-active');
       } else {
-        if (typeof screen.orientation.unlock === "function") screen.orientation.unlock();
-        landscapeModeActive = false;
+        await ScreenOrientation.unlock();
+        state.videoOrientationLocked = false;
+        const button = $("video-overlay-landscape");
+        button.setAttribute('aria-label', 'Rotate to landscape');
+        button.setAttribute('title', 'Landscape');
+        button.classList.remove('is-active');
       }
-      if (button) {
-        button.setAttribute("aria-label", landscapeModeActive ? "Unlock screen orientation" : "Rotate to landscape");
-        button.setAttribute("title", landscapeModeActive ? "Return to automatic rotation" : "Landscape");
-        button.classList.toggle("is-active", landscapeModeActive);
-      }
-      const status = $("video-status");
-      if (status) status.textContent = landscapeModeActive ? "Landscape orientation requested." : "Automatic screen orientation restored.";
     } catch (error) {
-      console.warn("Landscape rotation unavailable", error);
-      const status = $("video-status");
-      if (status) status.textContent = "Landscape rotation was blocked by the browser. Open fullscreen and enable device Auto-rotate, then try again.";
-      // If fullscreen succeeded but orientation lock was rejected, do not exit fullscreen
-      // or change the working playback/seek controls.
+      // Browser preview fallback. The native plugin is the intended Android APK path.
+      try {
+        if (!state.videoOrientationLocked && screen.orientation?.lock) {
+          await screen.orientation.lock('landscape');
+          state.videoOrientationLocked = true;
+        } else if (state.videoOrientationLocked && screen.orientation?.unlock) {
+          screen.orientation.unlock();
+          state.videoOrientationLocked = false;
+        } else {
+          throw error;
+        }
+      } catch (_) {
+        const status = $("video-status");
+        if (status) {
+          status.textContent = 'Rotate control needs the installed Android app. Enable Auto-rotate and try again.';
+          status.classList.remove('hidden');
+        }
+      }
     }
   }
+
   function setVideoLock(locked) {
     state.videoLocked = Boolean(locked);
     const lockButton = $("video-overlay-lock");
@@ -740,6 +733,57 @@ import { App } from '@capacitor/app';
   // Audio boost controls are optional in the video-first library UI. Guard them so
   // a missing audio-only control cannot abort all player initialization.
   $("audio-volume-boost")?.addEventListener("input", e => setVolumeBoost("audio", e.target.value));
+  // Video playback speed picker (0.5x–2x). This only changes the video element.
+  const videoSpeedButton = $("video-overlay-speed");
+  const videoSpeedMenu = $("video-speed-menu");
+  function setVideoPlaybackSpeed(value) {
+    const rate = Math.max(0.5, Math.min(2, Number(value) || 1));
+    state.videoPlaybackSpeed = rate;
+    video.playbackRate = rate;
+    if ("defaultPlaybackRate" in video) video.defaultPlaybackRate = rate;
+    if (videoSpeedButton) {
+      videoSpeedButton.setAttribute("aria-label", `Playback speed ${rate}x`);
+      videoSpeedButton.title = `Playback speed: ${rate}x`;
+    }
+    const label = $("video-overlay-speed-label");
+    if (label) label.textContent = `${rate}×`;
+    videoSpeedMenu?.querySelectorAll("[data-speed]").forEach(option => {
+      const selected = Number(option.dataset.speed) === rate;
+      option.classList.toggle("selected", selected);
+      option.setAttribute("aria-selected", selected ? "true" : "false");
+    });
+    videoSpeedMenu?.classList.add("hidden");
+    showVideoControls(true);
+  }
+  function positionVideoSpeedMenu() {
+    if (!videoSpeedButton || !videoSpeedMenu || videoSpeedMenu.classList.contains("hidden")) return;
+    const rect = videoSpeedButton.getBoundingClientRect();
+    const menuWidth = Math.max(videoSpeedMenu.offsetWidth || 116, 116);
+    const menuHeight = videoSpeedMenu.offsetHeight || 270;
+    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
+    const top = Math.max(8, Math.min(window.innerHeight - menuHeight - 8, rect.bottom + 7));
+    videoSpeedMenu.style.left = `${left}px`;
+    videoSpeedMenu.style.top = `${top}px`;
+    videoSpeedMenu.style.right = "auto";
+  }
+  videoSpeedButton?.addEventListener("click", event => {
+    event.stopPropagation();
+    const opening = videoSpeedMenu?.classList.contains("hidden");
+    videoSpeedMenu?.classList.toggle("hidden");
+    if (opening) requestAnimationFrame(positionVideoSpeedMenu);
+    showVideoControls(true);
+  });
+  window.addEventListener("resize", positionVideoSpeedMenu);
+  window.addEventListener("orientationchange", positionVideoSpeedMenu);
+  videoSpeedMenu?.querySelectorAll("[data-speed]").forEach(option => {
+    option.addEventListener("click", event => {
+      event.stopPropagation();
+      setVideoPlaybackSpeed(option.dataset.speed);
+    });
+  });
+  document.addEventListener("click", event => {
+    if (!event.target.closest(".video-speed-wrap")) videoSpeedMenu?.classList.add("hidden");
+  });
   $("video-overlay-lock").addEventListener("click", () => setVideoLock(!state.videoLocked));
   $("video-overlay-previous").addEventListener("click", () => playVideoRelative(-1));
   $("video-overlay-rewind").addEventListener("click", () => seekVideoBy(-15));
