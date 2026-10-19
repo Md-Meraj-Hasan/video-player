@@ -10,7 +10,7 @@ import { ScreenOrientation } from '@capacitor/screen-orientation';
   const state = {
     mode: "video", files: [], index: 0, objectUrls: [], allAudioFiles: [],
     favorites: loadFavorites(), favoritesOnly: false, shuffle: false,
-    repeat: "off", speed: 1, videoPlaybackSpeed: 1, lastPlayed: null, videoLocked: false, videoOrientationLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
+    repeat: "off", speed: 1, lastPlayed: null, videoLocked: false, videoOrientationLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
     audioBoost: 1, videoBoost: 1, audioGainContext: null, videoGainContext: null,
     audioGainNode: null, videoGainNode: null, audioSourceNode: null, videoSourceNode: null
   };
@@ -318,8 +318,6 @@ import { ScreenOrientation } from '@capacitor/screen-orientation';
       video.classList.remove("hidden");
       video.style.display = "block";
       video.src = videoUrl;
-      video.playbackRate = state.videoPlaybackSpeed || 1;
-      if ("defaultPlaybackRate" in video) video.defaultPlaybackRate = state.videoPlaybackSpeed || 1;
       video.load();
     } else {
       video.removeAttribute("src");
@@ -689,7 +687,7 @@ import { ScreenOrientation } from '@capacitor/screen-orientation';
   $("back-home")?.addEventListener("click", () => {
     video.pause(); playerScreen.classList.add("hidden"); welcome.classList.remove("hidden");
   });
-  $("rescan-library").addEventListener("click", scanDeviceLibrary);
+  $("rescan-library")?.addEventListener("click", scanDeviceLibrary);
   $("show-all-songs").addEventListener("click", () => {
     state.favoritesOnly = false;
     $("show-all-songs").classList.add("selected"); $("show-favorites").classList.remove("selected");
@@ -738,7 +736,6 @@ import { ScreenOrientation } from '@capacitor/screen-orientation';
   const videoSpeedMenu = $("video-speed-menu");
   function setVideoPlaybackSpeed(value) {
     const rate = Math.max(0.5, Math.min(2, Number(value) || 1));
-    state.videoPlaybackSpeed = rate;
     video.playbackRate = rate;
     if ("defaultPlaybackRate" in video) video.defaultPlaybackRate = rate;
     if (videoSpeedButton) {
@@ -755,26 +752,19 @@ import { ScreenOrientation } from '@capacitor/screen-orientation';
     videoSpeedMenu?.classList.add("hidden");
     showVideoControls(true);
   }
-  function positionVideoSpeedMenu() {
-    if (!videoSpeedButton || !videoSpeedMenu || videoSpeedMenu.classList.contains("hidden")) return;
-    const rect = videoSpeedButton.getBoundingClientRect();
-    const menuWidth = Math.max(videoSpeedMenu.offsetWidth || 116, 116);
-    const menuHeight = videoSpeedMenu.offsetHeight || 270;
-    const left = Math.max(8, Math.min(window.innerWidth - menuWidth - 8, rect.right - menuWidth));
-    const top = Math.max(8, Math.min(window.innerHeight - menuHeight - 8, rect.bottom + 7));
-    videoSpeedMenu.style.left = `${left}px`;
-    videoSpeedMenu.style.top = `${top}px`;
-    videoSpeedMenu.style.right = "auto";
-  }
   videoSpeedButton?.addEventListener("click", event => {
     event.stopPropagation();
-    const opening = videoSpeedMenu?.classList.contains("hidden");
-    videoSpeedMenu?.classList.toggle("hidden");
-    if (opening) requestAnimationFrame(positionVideoSpeedMenu);
+    const willOpen = Boolean(videoSpeedMenu?.classList.contains("hidden"));
+    videoSpeedMenu?.classList.toggle("hidden", !willOpen);
+    if (willOpen && videoSpeedMenu) {
+      const rect = videoSpeedButton.getBoundingClientRect();
+      videoSpeedMenu.style.top = `${Math.min(rect.bottom + 7, window.innerHeight - 220)}px`;
+      videoSpeedMenu.style.right = `${Math.max(8, window.innerWidth - rect.right)}px`;
+      videoSpeedMenu.style.left = "auto";
+      videoSpeedMenu.style.maxHeight = `${Math.max(150, window.innerHeight - Math.min(rect.bottom + 7, window.innerHeight - 220) - 12)}px`;
+    }
     showVideoControls(true);
   });
-  window.addEventListener("resize", positionVideoSpeedMenu);
-  window.addEventListener("orientationchange", positionVideoSpeedMenu);
   videoSpeedMenu?.querySelectorAll("[data-speed]").forEach(option => {
     option.addEventListener("click", event => {
       event.stopPropagation();
