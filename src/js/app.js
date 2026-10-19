@@ -108,8 +108,12 @@ import { App } from '@capacitor/app';
     renderPlaylist();
   }
   function updateScanMessage(message) {
-    $("scan-title").textContent = message || (state.mode === "audio" ? "Music library" : "Video library");
-    $("scan-description").textContent = message
+    // The scan-status banner was intentionally removed to reclaim library space.
+    // Keep this function safe for scan progress updates without requiring banner DOM nodes.
+    const title = $("scan-title");
+    const description = $("scan-description");
+    if (title) title.textContent = message || (state.mode === "audio" ? "Music library" : "Video library");
+    if (description) description.textContent = message
       ? "Media is read locally from your Android device."
       : "Tap Rescan to refresh media stored on this device.";
   }
@@ -342,13 +346,34 @@ import { App } from '@capacitor/app';
     if (!Number.isFinite(video.duration) || video.duration <= 0) return;
     video.currentTime = Math.max(0, Math.min(video.duration, video.currentTime + seconds));
   }
+  function updateDisplayModeIcon() {
+    const button = $("video-overlay-display");
+    if (!button) return;
+    const fullscreen = Boolean(document.fullscreenElement) || $("video-frame")?.classList.contains("is-fullscreen");
+    button.textContent = fullscreen ? "⛶" : state.videoFit === "cover" ? "▣" : "⛶";
+    const label = fullscreen ? "Display mode: Exit fullscreen" : state.videoFit === "cover" ? "Display mode: Fullscreen next" : "Display mode: Fit / zoom next";
+    button.setAttribute("aria-label", label);
+    button.setAttribute("title", label);
+  }
   function applyVideoFit() {
     video.style.objectFit = state.videoFit;
-    const fitButton = $("video-overlay-fit");
-    if (fitButton) {
-      fitButton.textContent = state.videoFit === "contain" ? "⛶" : state.videoFit === "cover" ? "▣" : "↔";
-      fitButton.setAttribute("aria-label", state.videoFit === "contain" ? "Fit video to screen" : state.videoFit === "cover" ? "Fill screen" : "Stretch video");
+    updateDisplayModeIcon();
+  }
+  async function cycleVideoDisplayMode() {
+    const fullscreen = Boolean(document.fullscreenElement) || $("video-frame")?.classList.contains("is-fullscreen");
+    if (fullscreen) {
+      await toggleVideoFullscreen();
+      state.videoFit = "contain";
+      applyVideoFit();
+      return;
     }
+    if (state.videoFit === "contain") {
+      state.videoFit = "cover";
+      applyVideoFit();
+      return;
+    }
+    await toggleVideoFullscreen();
+    updateDisplayModeIcon();
   }
   function playVideoRelative(delta) {
     if (state.mode !== "video" || !state.files.length) return;
@@ -361,16 +386,18 @@ import { App } from '@capacitor/app';
     playIndex(globalIndex >= 0 ? globalIndex : 0, true);
   }
   async function toggleLandscape() {
-    // Android WebView generally allows orientation locking only after a user gesture
-    // and often only while the media frame is fullscreen. Enter fullscreen first.
+    // Sensor-driven rotation: never force "landscape" or "portrait" here.
+    // Enter fullscreen and let Android's accelerometer / system Auto-rotate decide
+    // whether the video should be landscape-left, landscape-right, or portrait.
     try {
-      const isLandscape = Boolean(screen.orientation?.type?.startsWith("landscape"));
       if (!document.fullscreenElement) {
         const target = $("video-frame");
         if (target?.requestFullscreen) await target.requestFullscreen();
         else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
+      } else {
+        // Keep fullscreen active; the device sensor controls the direction.
+        screen.orientation?.unlock?.();
       }
-      if (screen.orientation?.lock) await screen.orientation.lock(isLandscape ? "portrait" : "landscape");
     } catch (_) {
       if (!document.fullscreenElement) await toggleVideoFullscreen();
     }
@@ -391,7 +418,9 @@ import { App } from '@capacitor/app';
         const target = $("video-frame");
         if (target.requestFullscreen) await target.requestFullscreen();
         else if (video.webkitEnterFullscreen) { video.webkitEnterFullscreen(); return; }
-        try { if (screen.orientation && screen.orientation.lock) await screen.orientation.lock("landscape"); } catch (_) {}
+        // Do not lock to a fixed landscape direction. Let Android sensor rotation
+        // follow the physical phone orientation automatically.
+        try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (_) {}
       } else {
         await document.exitFullscreen();
         try { if (screen.orientation && screen.orientation.unlock) screen.orientation.unlock(); } catch (_) {}
@@ -678,11 +707,9 @@ import { App } from '@capacitor/app';
   $("video-overlay-rewind").addEventListener("click", () => seekVideoBy(-15));
   $("video-overlay-forward").addEventListener("click", () => seekVideoBy(15));
   $("video-overlay-next").addEventListener("click", () => playVideoRelative(1));
-  $("video-overlay-zoom").addEventListener("click", () => { state.videoFit = state.videoFit === "cover" ? "contain" : "cover"; applyVideoFit(); });
   $("video-overlay-landscape").addEventListener("click", toggleLandscape);
   $("video-overlay-play").addEventListener("click", () => { if (video.paused) video.play().catch(() => {}); else video.pause(); });
-  $("video-overlay-fit").addEventListener("click", () => { state.videoFit = "contain"; applyVideoFit(); });
-  $("video-overlay-fullscreen")?.addEventListener("click", toggleVideoFullscreen);
+  $("video-overlay-display")?.addEventListener("click", cycleVideoDisplayMode);
   $("video-overlay-volume")?.addEventListener("click", () => $("video-overlay-volume-panel").classList.toggle("hidden"));
   $("video-overlay-volume-slider")?.addEventListener("input", e => { video.volume = Math.max(0, Math.min(1, Number(e.target.value) / 100)); const volumeButton = $("video-overlay-volume"); if (volumeButton) volumeButton.textContent = video.volume === 0 ? "🔇" : "🔊"; });
   const videoSeekbar = $("video-seekbar");
@@ -729,8 +756,8 @@ import { App } from '@capacitor/app';
     applyVideoFit();
     const status = $("video-status");
     $("video-overlay-title").textContent = state.files[state.index]?.name || "Now playing";
-    $("video-overlay-controls").classList.remove("hidden");
     positionVideoControls();
+    showVideoControls(true);
     $("video-total-time").textContent = formatTime(video.duration);
     if (status) status.textContent = `Video loaded · ${video.videoWidth}×${video.videoHeight} · ${formatTime(video.duration)}`;
   });
@@ -756,60 +783,42 @@ import { App } from '@capacitor/app';
   const videoFrame = $("video-frame");
   function showVideoControls(show) {
     const controls = $("video-overlay-controls");
-    if (!controls || state.videoLocked) return;
-    const immersive = Boolean(document.fullscreenElement) || videoFrame.classList.contains("is-fullscreen");
-    if (!immersive) { controls.classList.remove("hidden"); return; }
-    controls.classList.toggle("hidden", !show);
+    if (!controls) return;
     if (state.controlsTimer) clearTimeout(state.controlsTimer);
     state.controlsTimer = null;
-    if (show) state.controlsTimer = setTimeout(() => {
-      if (!state.videoLocked) controls.classList.add("hidden");
-    }, 5000);
+    if (state.videoLocked) {
+      controls.classList.remove("hidden");
+      return;
+    }
+    controls.classList.toggle("hidden", !show);
+    if (show) {
+      state.controlsTimer = setTimeout(() => {
+        if (!state.videoLocked) controls.classList.add("hidden");
+      }, 5000);
+    }
   }
   const videoOverlay = $("video-overlay-controls");
-  if (videoOverlay && videoFrame.parentElement) videoFrame.parentElement.insertBefore(videoOverlay, $("track-details"));
+  // Layout B: keep controls attached to the video in portrait, landscape and fullscreen.
+  if (videoOverlay && videoFrame && videoOverlay.parentElement !== videoFrame) videoFrame.appendChild(videoOverlay);
   let lastFrameTap = 0;
   videoFrame.addEventListener("click", e => {
     if (e.target.closest(".video-overlay-controls")) return;
-    const immersive = Boolean(document.fullscreenElement) || videoFrame.classList.contains("is-fullscreen");
-    if (immersive) {
-      if (state.videoLocked) return;
-      showVideoControls($("video-overlay-controls").classList.contains("hidden"));
-      return;
-    }
-    // Inline player: tapping the picture toggles playback; controls remain below it.
-    if (e.target === video || e.target.closest(".video-element")) {
-      const now = Date.now();
-      if (now - lastFrameTap < 320) {
-        const rect = video.getBoundingClientRect();
-        seekVideoBy(e.clientX < rect.left + rect.width / 2 ? -15 : 15);
-      } else if (video.paused) {
-        video.play().catch(err => {
-          const status = $("video-status");
-          if (status) { status.textContent = err?.message || "Tap Play to start this video."; status.classList.remove("hidden"); }
-        });
-      } else {
-        video.pause();
-      }
-      lastFrameTap = now;
-    }
+    if (state.videoLocked) return;
+    // A single tap anywhere on the video toggles controls; no accidental pause/scroll blocking.
+    const controls = $("video-overlay-controls");
+    showVideoControls(controls.classList.contains("hidden"));
   });
   function positionVideoControls() {
     const frame = $("video-frame"), controls = $("video-overlay-controls");
     if (!frame || !controls) return;
-    const immersive = Boolean(document.fullscreenElement) || frame.classList.contains("is-fullscreen");
-    if (immersive) {
-      if (controls.parentElement !== frame) frame.appendChild(controls);
-      controls.classList.add("overlay-on-video");
-    } else {
-      if (controls.parentElement !== frame.parentElement) frame.parentElement.insertBefore(controls, $("track-details"));
-      controls.classList.remove("overlay-on-video");
-    }
+    if (controls.parentElement !== frame) frame.appendChild(controls);
+    controls.classList.add("overlay-on-video");
   }
   document.addEventListener("fullscreenchange", () => {
     const frame = $("video-frame");
     if (frame) frame.classList.toggle("is-fullscreen", Boolean(document.fullscreenElement));
     positionVideoControls();
+    updateDisplayModeIcon();
     if (document.fullscreenElement) showVideoControls(true);
   });
   screen.orientation?.addEventListener?.("change", () => {
