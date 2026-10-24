@@ -114,6 +114,7 @@ async function scanDeviceVideos() {
     videos = items.map((x) => ({
       id: String(x.id || x.uri),
       uri: x.uri,
+      mimeType: x.mimeType || x.type || 'video/*',
       name: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
       title: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
       path: x.relativePath || x.path || 'Device Videos',
@@ -125,6 +126,7 @@ async function scanDeviceVideos() {
 
     if (videos.length > 0) {
       $('empty-library')?.classList.add('hidden');
+      $('video-status')?.classList.add('hidden');
       renderFolders();
       renderPlaylist();
       fetchThumbnails();
@@ -164,44 +166,33 @@ async function playVideoAtIndex(index) {
   currentVideoIndex = index;
   const item = videos[index];
 
-  const stage = $('media-stage');
-  const frame = $('video-frame');
-  const video = $('video-element');
-  const overlayTitle = $('video-overlay-title');
-  const curName = $('current-name');
-  const playBtn = $('video-overlay-play');
-
-  if (stage) stage.classList.remove('hidden');
-  if (frame) frame.classList.remove('hidden');
-  if (video) video.classList.remove('hidden');
-
   const displayName = item.title || item.name;
-  if (overlayTitle) overlayTitle.textContent = displayName;
-  if (curName) curName.textContent = displayName;
 
+  // Videos must be played by the native AndroidX Media3 ExoPlayer Activity.
+  // Do not route content:// URIs through the HTML <video> element or copy them to cache.
   try {
-    // Notify native bridge to prepare playback
-    const prep = await callNative('preparePlayback', { id: item.id, uri: item.uri, path: item.path }).catch(() => null);
-    const playbackSrc = prep?.uri || prep?.url || prep?.path || item.uri;
-
-    // Convert file src if available via Capacitor parent
-    const Cap = window.parent?.Capacitor || window.Capacitor;
-    const finalUrl = (Cap?.convertFileSrc && playbackSrc && !playbackSrc.startsWith('http')) 
-      ? Cap.convertFileSrc(playbackSrc) 
-      : playbackSrc;
-
-    if (finalUrl && video) {
-      video.src = finalUrl;
-      video.load();
-      await video.play().catch(() => {});
-    }
+    const queue = videos.map((v) => ({
+      uri: v.uri,
+      name: v.title || v.name || 'Video',
+      mimeType: v.mimeType || v.type || 'video/*'
+    }));
+    const result = await callNative('launchVideo', {
+      id: item.id,
+      uri: item.uri,
+      name: displayName,
+      mimeType: item.mimeType || item.type || 'video/*',
+      queue
+    });
+    if (!result?.opened) throw new Error('Native Media3 player did not open.');
+    renderPlaylist();
   } catch (err) {
-    console.warn('[Meraj Video] Playback setup:', err);
+    console.error('[Meraj Video] Media3 launch failed:', err);
+    const status = $('video-status');
+    if (status) {
+      status.textContent = 'Could not open this video in Media3 ExoPlayer. Please rescan and try again.';
+      status.classList.remove('hidden');
+    }
   }
-
-  if (playBtn) playBtn.textContent = '❚❚';
-  showControls();
-  renderPlaylist();
 }
 
 function collapseVideo() {
