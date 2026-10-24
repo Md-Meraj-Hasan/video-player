@@ -19,6 +19,7 @@ import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
+import android.widget.PopupWindow
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
@@ -276,7 +277,8 @@ class NativeVideoPlayerActivity : Activity() {
     private fun buildControls() {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
-            setPadding(dp(8), dp(2), dp(8), dp(4))
+            val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            setPadding(if (landscape) 0 else dp(8), dp(2), if (landscape) 0 else dp(8), dp(4))
             background = null
         }
         val top = LinearLayout(this).apply {
@@ -288,6 +290,7 @@ class NativeVideoPlayerActivity : Activity() {
         // Requested layout: speed button on the LEFT, title in the middle, share on the RIGHT.
         speedButton = compactTool("1×  ▾") { showSpeedPicker() }.apply {
             contentDescription = "Playback speed menu"
+            background = solidButton(Color.rgb(112, 55, 190))
             minWidth = dp(76)
             textSize = 16f
             setPadding(dp(10), dp(8), dp(10), dp(8))
@@ -304,6 +307,7 @@ class NativeVideoPlayerActivity : Activity() {
         top.addView(titleLabel, LinearLayout.LayoutParams(0, dp(48), 1f))
         shareButton = compactTool("↗  Share") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
+            background = solidButton(Color.rgb(34, 150, 82))
             minWidth = dp(88)
             textSize = 16f
             setPadding(dp(10), dp(8), dp(10), dp(8))
@@ -331,17 +335,33 @@ class NativeVideoPlayerActivity : Activity() {
             setPadding(dp(5), dp(5), dp(5), dp(5))
         }
         fun makeText(label: String, action: () -> Unit): TextView = compactTool(label, action).apply {
-            textSize = 19f
+            textSize = 21f
             setTextColor(Color.WHITE)
-            background = null
+            background = solidButton(Color.rgb(112, 55, 190))
             setPadding(dp(3), dp(5), dp(3), dp(5))
         }
+        fun skipButton(reverse: Boolean): TextView = compactTool(if (reverse) "↶\\n15" else "↷\\n15") {
+            controller?.let { player ->
+                val duration = player.duration
+                val target = if (reverse) (player.currentPosition - 15_000L).coerceAtLeast(0L)
+                    else (player.currentPosition + 15_000L).let { if (duration > 0L) it.coerceAtMost(duration) else it }
+                player.seekTo(target)
+            }
+            showControls()
+        }.apply {
+            textSize = 18f
+            setLineSpacing(-dp(3).toFloat(), 1f)
+            gravity = Gravity.CENTER
+            setTextColor(Color.WHITE)
+            background = solidButton(Color.rgb(205, 48, 64))
+            setPadding(dp(2), 0, dp(2), 0)
+            contentDescription = if (reverse) "Rewind 15 seconds" else "Forward 15 seconds"
+        }
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT }
-        val rewind = makeText("↶15") { controller?.let { it.seekTo((it.currentPosition - 15_000).coerceAtLeast(0)) } }
-        leftGroup.addView(rewind, LinearLayout.LayoutParams(dp(48), dp(52)))
-        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 25f; contentDescription = "Fit screen" }
-        rotateButton = makeText("↻") { toggleOrientation() }
-        leftGroup.addView(rotateButton, LinearLayout.LayoutParams(dp(34), dp(48)))
+        val rewind = skipButton(true)
+        leftGroup.addView(rewind, LinearLayout.LayoutParams(dp(48), dp(48)))
+        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 29f; contentDescription = "Fit screen" }
+        rotateButton = makeText("↻") { toggleOrientation() }.apply { contentDescription = "Rotate screen" }
         val previousButton = makeIcon(android.R.drawable.ic_media_previous) {
             controller?.let { p ->
                 if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem()
@@ -360,7 +380,7 @@ class NativeVideoPlayerActivity : Activity() {
         rightGroup.addView(nextButton, LinearLayout.LayoutParams(dp(48), dp(52)))
         val forward = skipButton(false)
         rightGroup.addView(forward, LinearLayout.LayoutParams(dp(48), dp(48)))
-        rightGroup.addView(fitButton, LinearLayout.LayoutParams(dp(48), dp(52)))
+        rightGroup.addView(fitButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         lockButton = makeText("🔓") {
             locked = !locked
             lockButton.text = if (locked) "🔒" else "🔓"
@@ -369,7 +389,8 @@ class NativeVideoPlayerActivity : Activity() {
             if (locked) { handler.removeCallbacks(hideControls); Toast.makeText(this, "Controls locked — tap lock to unlock", Toast.LENGTH_SHORT).show() }
             else { showControls(); Toast.makeText(this, "Controls unlocked", Toast.LENGTH_SHORT).show() }
         }
-        rightGroup.addView(lockButton, LinearLayout.LayoutParams(dp(48), dp(52)))
+        rightGroup.addView(lockButton, LinearLayout.LayoutParams(dp(48), dp(48)))
+        rightGroup.addView(rotateButton, LinearLayout.LayoutParams(dp(48), dp(48)))
         middle.addView(rightGroup, LinearLayout.LayoutParams(0, dp(48), 1f))
 
         playButton = ImageButton(this).apply {
@@ -421,8 +442,11 @@ class NativeVideoPlayerActivity : Activity() {
         controls.setOnClickListener { showControls() }
     }
 
-    // Match the app's existing dark-teal / aqua palette; controls should look native to the GUI,
-    // not like newly added default Android buttons.
+    private fun solidButton(color: Int) = GradientDrawable().apply {
+        setColor(color)
+        cornerRadius = dp(8).toFloat()
+    }
+
     private fun panelBackground() = GradientDrawable().apply {
         setColor(Color.argb(224, 5, 20, 24))
         cornerRadius = dp(12).toFloat()
@@ -451,7 +475,7 @@ class NativeVideoPlayerActivity : Activity() {
         setPadding(12, 12, 12, 12); setOnClickListener { action(); showControls() }
     }
     private fun iconButton(icon: Int, action: () -> Unit): ImageButton = ImageButton(this).apply {
-        setImageResource(icon); setColorFilter(Color.rgb(226, 255, 251)); background = toolBackground()
+        setImageResource(icon); setColorFilter(Color.WHITE); background = solidButton(Color.rgb(34, 150, 82))
         layoutParams = LinearLayout.LayoutParams(0, 58, 1f); setPadding(10, 10, 10, 10)
         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         setOnClickListener { action(); showControls() }
@@ -615,28 +639,61 @@ class NativeVideoPlayerActivity : Activity() {
     private fun toggleFit() { fitMode = (fitMode + 1) % 3; playerView.resizeMode = when (fitMode) { 1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM; 2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL; else -> AspectRatioFrameLayout.RESIZE_MODE_FIT }; fitButton.text = when (fitMode) { 1 -> "Zoom"; 2 -> "Fill"; else -> "Fit" }; showControls() }
     private fun toggleOrientation() {
         requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-        root.post { if (::controls.isInitialized) setControlsLocked(locked) }
+        root.post {
+            if (::controls.isInitialized) {
+                val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                controls.setPadding(if (landscape) 0 else dp(8), dp(2), if (landscape) 0 else dp(8), dp(4))
+                val lp = controls.layoutParams as? FrameLayout.LayoutParams
+                if (lp != null) {
+                    lp.width = FrameLayout.LayoutParams.MATCH_PARENT
+                    lp.leftMargin = 0
+                    lp.rightMargin = 0
+                    controls.layoutParams = lp
+                }
+                setControlsLocked(locked)
+                controls.requestLayout()
+            }
+        }
         showControls()
     }
     private fun showSpeedPicker() {
         val values = arrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
-        val labels = values.map { if (it == 1f) "1× Normal" else "${it}×" }.toTypedArray()
-        AlertDialog.Builder(this)
-            .setTitle("Playback speed")
-            .setSingleChoiceItems(labels, values.indexOf(speed).coerceAtLeast(0)) { dialog, which ->
-                speed = values[which]
-                val active = controller
-                if (active == null) {
-                    Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
-                } else {
-                    active.setPlaybackSpeed(speed)
-                    speedButton.text = if (speed == 1f) "1× ▾" else "${speed}× ▾"
-                }
-                dialog.dismiss()
-                showControls()
+        val popupContent = LinearLayout(this).apply {
+            orientation = LinearLayout.VERTICAL
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            background = GradientDrawable().apply {
+                setColor(Color.rgb(31, 24, 46))
+                cornerRadius = dp(10).toFloat()
+                setStroke(dp(1), Color.rgb(112, 55, 190))
             }
-            .setNegativeButton("Cancel", null)
-            .show()
+        }
+        var popup: PopupWindow? = null
+        values.forEach { value ->
+            val label = if (value == 1f) "1×  Normal" else "${value}×"
+            val item = TextView(this).apply {
+                text = label
+                textSize = 14f
+                setTextColor(if (value == speed) Color.WHITE else Color.LTGRAY)
+                gravity = Gravity.CENTER_VERTICAL
+                setPadding(dp(14), dp(4), dp(16), dp(4))
+                minWidth = dp(116)
+                if (value == speed) background = solidButton(Color.rgb(112, 55, 190))
+                setOnClickListener {
+                    speed = value
+                    controller?.setPlaybackSpeed(speed)
+                    speedButton.text = if (speed == 1f) "1×  ▾" else "${speed}×  ▾"
+                    popup?.dismiss()
+                    showControls()
+                }
+            }
+            popupContent.addView(item, LinearLayout.LayoutParams(-1, dp(36)))
+        }
+        popup = PopupWindow(popupContent, dp(138), -2, true).apply {
+            elevation = dp(12).toFloat()
+            isOutsideTouchable = true
+            setBackgroundDrawable(android.graphics.drawable.ColorDrawable(Color.TRANSPARENT))
+            showAsDropDown(speedButton, 0, -dp(2), Gravity.START)
+        }
         showControls()
     }
     private fun snapshotQueue(p: MediaController) { if (queueSnapshotTaken) return; previousQueue = (0 until p.mediaItemCount).map { p.getMediaItemAt(it) }; previousIndex = p.currentMediaItemIndex.coerceAtLeast(0); previousPosition = p.currentPosition.coerceAtLeast(0L); previousPlayWhenReady = p.playWhenReady; queueSnapshotTaken = true }
