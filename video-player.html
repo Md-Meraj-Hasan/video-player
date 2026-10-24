@@ -11,7 +11,17 @@
   <style>
     :root{color-scheme:dark;background:#090a12;color:#f7f7ff;font-family:system-ui,-apple-system,"Segoe UI",sans-serif}
     *{box-sizing:border-box}.hidden,[hidden]{display:none!important}html,body{margin:0;min-height:100%;width:100%;background:#090a12;color:#f7f7ff}body{overflow-x:hidden}button,input,select{font:inherit}button{color:inherit;cursor:pointer}.app-shell{width:100%;max-width:760px;min-height:100vh;margin:0 auto;padding:0 16px 18px}.player-screen{padding-top:14px}.library-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.library-title-wrap h2{font-size:clamp(24px,6vw,32px);margin:0}.library-title-wrap>p:last-child,.empty-library p,.video-meta small{color:#a5abc1}.video-library-toolbar{display:flex;flex-direction:column;gap:10px;margin-bottom:12px}.library-search,.library-tab,.icon-action{background:#151724;border:1px solid #30344b;border-radius:12px;color:#f7f7ff;padding:10px}.library-search{display:flex;gap:8px}.library-search input{min-width:0;width:100%;background:transparent;border:0;color:inherit}.library-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px}.library-tab.selected,.folder-chip.active{border-color:#55e8f5;color:#55e8f5}.video-folder-strip{display:flex;gap:8px;overflow-x:auto;padding:8px 0}.folder-chip{flex-shrink:0;padding:8px 12px;border:1px solid #30344b;border-radius:999px;background:#151724}.empty-library,.playlist-empty{padding:20px;text-align:center;background:#151724;border-radius:14px}.video-frame{position:relative;width:100%;aspect-ratio:16/9;background:#000;border-radius:16px;overflow:hidden}.video-element{width:100%;height:100%;object-fit:contain}.playlist{display:flex;flex-direction:column;gap:5px}.video-item{display:flex;align-items:center;gap:12px;padding:10px;border-radius:12px}.video-thumb{width:74px;height:52px;flex-shrink:0;background:#202337;border-radius:8px;display:grid;place-items:center}.thumb-img{width:100%;height:100%;object-fit:cover}.video-meta{min-width:0}.video-meta strong{overflow-wrap:anywhere}.bottom-navigation{position:sticky;bottom:0;display:flex;justify-content:space-around;background:#0c0e18;padding:8px}.bottom-nav-item{background:transparent;border:0;padding:8px}
-  </style>
+  
+    /* Keep the theme picker visible in the Android WebView even if the external stylesheet is stale. */
+    .library-head-actions{display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;position:relative!important}
+    #video-theme-toggle{display:grid!important;visibility:visible!important;opacity:1!important;place-items:center!important;flex:0 0 42px!important;width:42px!important;height:42px!important;min-width:42px!important;padding:0!important;border-radius:13px!important;background:#241044!important;border:2px solid #a66cff!important;color:#d8b4fe!important;position:relative!important;z-index:5!important}
+    #rescan-library-top{display:flex!important;flex-direction:column!important;align-items:center!important;justify-content:center!important;gap:1px!important;flex:0 0 54px!important;width:54px!important;height:46px!important;min-width:54px!important;padding:3px 2px!important;border-radius:13px!important;background:#241044!important;border:2px solid #a66cff!important;color:#d8b4fe!important;position:relative!important;z-index:5!important}
+    #video-theme-toggle svg{display:block!important;width:25px!important;height:25px!important;stroke:currentColor!important;stroke-width:2.2!important}
+    #rescan-library-top svg{display:block!important;width:19px!important;height:19px!important;stroke:currentColor!important;stroke-width:2.4!important;flex-shrink:0!important}
+    #rescan-library-top .scan-label{font-size:9px!important;line-height:10px!important;font-weight:900!important;letter-spacing:1px!important;color:currentColor!important;display:block!important}
+    :root[data-video-theme="green"] #rescan-library-top,:root[data-video-theme="green"] #video-theme-toggle{background:#064e3b!important;border-color:#20e69a!important;color:#6ee7b7!important}
+    :root[data-video-theme="red"] #rescan-library-top,:root[data-video-theme="red"] #video-theme-toggle{background:#881337!important;border-color:#ff496b!important;color:#ffe4e6!important}
+</style>
 </head>
 <body>
   <div class="app-shell">
@@ -46,8 +56,14 @@
             <h2 id="player-title">Video Library</h2>
             <p id="player-subtitle">Your videos, stored on this device.</p>
           </div>
-          <div class="library-head-actions">
-            <button id="rescan-library-top" class="icon-action" type="button" aria-label="Rescan videos" title="Rescan">⟳</button>
+          <div class="library-head-actions" style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;position:relative!important;">
+            <button id="rescan-library-top" class="icon-action" type="button" aria-label="Scan videos" title="Scan videos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4.8 9A7.5 7.5 0 0 1 18 6l2 6M4 17v-5h5m10.2 3A7.5 7.5 0 0 1 6 18l-2-6"/></svg><span class="scan-label">SCAN</span></button>
+            <button id="video-theme-toggle" class="icon-action video-theme-toggle" type="button" aria-label="Choose video theme" title="Choose theme" style="display:grid!important;visibility:visible!important;opacity:1!important;flex:0 0 42px!important;width:42px!important;height:42px!important;min-width:42px!important;padding:0!important;background:#241044!important;border:2px solid #a66cff!important;color:#d8b4fe!important;place-items:center!important;position:relative!important;z-index:5!important;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2.3 2.3 0 0 0 1.4-4.1 1.6 1.6 0 0 1 1-2.9H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="11" cy="6.5" r="1"/><circle cx="15.5" cy="8" r="1"/></svg></button>
+            <div id="video-theme-popover" class="video-theme-popover hidden" role="dialog" aria-label="Choose video theme">
+              <button type="button" data-video-theme="default"><span class="theme-dot theme-purple"></span>Default</button>
+              <button type="button" data-video-theme="green"><span class="theme-dot theme-green"></span>Green</button>
+              <button type="button" data-video-theme="red"><span class="theme-dot theme-red"></span>Red</button>
+            </div>
           </div>
         </div>
 
