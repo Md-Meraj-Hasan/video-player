@@ -97,6 +97,81 @@
         <div id="media-stage" class="media-stage hidden">
           <div id="artwork" class="artwork hidden" aria-hidden="true"><span>▶</span></div>
           <div id="video-frame" class="video-frame hidden">
+            <div id="video-frame" class="video-frame hidden">
+            <!-- 🔒 FLOATING UNLOCK BUTTON (Sirf Locked hone par dikhega) -->
+            <button id="video-floating-unlock" class="floating-unlock hidden" type="button" aria-label="Unlock screen">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+              </svg>
+              <span>Tap to Unlock</span>
+            </button>
+
+            <button id="collapse-video-stage" class="collapse-video-stage" type="button" aria-label="Hide video and show full video list" title="Hide video to browse list">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+
+            <!-- FULL-WIDTH CONTROLS OVERLAY -->
+            <div id="video-overlay-controls" class="video-overlay-controls hidden">
+              
+              <!-- TOP BAR: Title & Speed -->
+              <div class="video-overlay-top">
+                <span id="video-overlay-title">Now playing</span>
+                <div class="video-speed-wrap">
+                  <button id="video-overlay-speed" type="button" aria-label="Playback speed 1x" title="Playback speed">
+                    <svg class="speedometer-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.8 18.2a9 9 0 1 1 14.4 0"/><path d="M12 12l4.3-4.1"/><circle cx="12" cy="12" r="1.25"/></svg>
+                    <small id="video-overlay-speed-label">1×</small>
+                  </button>
+                  <div id="video-speed-menu" class="video-speed-menu hidden" role="listbox" aria-label="Select video playback speed">
+                    <button type="button" data-speed="0.5">0.5×</button>
+                    <button type="button" data-speed="0.75">0.75×</button>
+                    <button type="button" data-speed="1">1× Normal</button>
+                    <button type="button" data-speed="1.25">1.25×</button>
+                    <button type="button" data-speed="1.5">1.5×</button>
+                    <button type="button" data-speed="1.75">1.75×</button>
+                    <button type="button" data-speed="2">2×</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- CENTER BAR: Standard Media Player Sequence -->
+              <div class="video-overlay-center">
+                <button id="video-overlay-rewind" type="button" aria-label="Seek back 15 seconds" title="Back 15 seconds">↶</button>
+                <button id="video-overlay-previous" type="button" aria-label="Previous video" title="Previous video">⏮</button>
+                <button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video" title="Play/Pause">▶</button>
+                <button id="video-overlay-next" type="button" aria-label="Next video" title="Next video">⏭</button>
+                <button id="video-overlay-forward" type="button" aria-label="Seek forward 15 seconds" title="Forward 15 seconds">↷</button>
+              </div>
+
+              <!-- BOTTOM BAR: Seekbar + Standard Utility Icons -->
+              <div class="video-overlay-bottom">
+                <div class="video-timeline-full">
+                  <span id="video-current-time">0:00</span>
+                  <input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video">
+                  <span id="video-total-time">0:00</span>
+                </div>
+
+                <div class="video-utility-row">
+                  <!-- Left: Lock System -->
+                  <button id="video-overlay-lock" type="button" aria-label="Lock controls" title="Lock controls">🔒 <small>Lock</small></button>
+
+                  <!-- Right: Volume, Fit, Rotate -->
+                  <div class="utility-right-tools">
+                    <div class="volume-tool-wrap">
+                      <button id="video-overlay-volume" type="button" aria-label="Volume" title="Volume">🔊 <small>Volume</small></button>
+                      <div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden">
+                        <input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume">
+                      </div>
+                    </div>
+                    <button id="video-overlay-display" type="button" aria-label="Display mode: Fit" title="Cycle fit, zoom, fullscreen">⛶ <small>Display</small></button>
+                    <button id="video-overlay-landscape" type="button" aria-label="Rotate to landscape" title="Landscape">⤢ <small>Landscape</small></button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <video id="video-element" class="video-element hidden" playsinline preload="metadata"></video>
+          </div>
             <button id="collapse-video-stage" class="collapse-video-stage" type="button" aria-label="Hide video and show full video list" title="Hide video to browse list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
             <div id="video-overlay-controls" class="video-overlay-controls hidden"><div class="video-overlay-top"><span id="video-overlay-title">Now playing</span><div class="video-speed-wrap"><button id="video-overlay-speed" type="button" aria-label="Playback speed 1x" title="Playback speed"><svg class="speedometer-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.8 18.2a9 9 0 1 1 14.4 0"/><path d="M12 12l4.3-4.1"/><circle cx="12" cy="12" r="1.25"/></svg><small id="video-overlay-speed-label">1×</small></button><div id="video-speed-menu" class="video-speed-menu hidden" role="listbox" aria-label="Select video playback speed"><button type="button" data-speed="0.5">0.5×</button><button type="button" data-speed="0.75">0.75×</button><button type="button" data-speed="1">1× Normal</button><button type="button" data-speed="1.25">1.25×</button><button type="button" data-speed="1.5">1.5×</button><button type="button" data-speed="1.75">1.75×</button><button type="button" data-speed="2">2×</button></div></div></div><div class="video-overlay-bottom"><div class="video-overlay-time"><span id="video-current-time">0:00</span><span id="video-total-time">0:00</span></div><input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video"><div class="video-overlay-actions video-transport-row"><button id="video-overlay-previous" type="button" aria-label="Previous video" title="Previous video">⏮</button><button id="video-overlay-rewind" type="button" aria-label="Seek back 15 seconds" title="Back 15 seconds">↶</button><button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video" title="Play/Pause">▶</button><button id="video-overlay-forward" type="button" aria-label="Seek forward 15 seconds" title="Forward 15 seconds">↷</button><button id="video-overlay-next" type="button" aria-label="Next video" title="Next video">⏭</button></div><div class="video-overlay-actions video-utility-row"><button id="video-overlay-display" type="button" aria-label="Display mode: Fit" title="Cycle fit, zoom, fullscreen">⛶ <small>Display</small></button><button id="video-overlay-volume" type="button" aria-label="Volume" title="Volume">🔊 <small>Volume</small></button><button id="video-overlay-landscape" type="button" aria-label="Rotate to landscape" title="Landscape">⤢ <small>Landscape</small></button><button id="video-overlay-lock" type="button" aria-label="Lock controls" title="Lock controls">🔒 <small>Lock</small></button></div><div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden"><input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume"></div></div></div>
             <video id="video-element" class="video-element hidden" playsinline preload="metadata"></video>
