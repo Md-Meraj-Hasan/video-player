@@ -11,6 +11,7 @@ import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.session.MediaSession
 import androidx.media3.session.MediaSessionService
 import android.media.audiofx.Equalizer
+import android.media.audiofx.LoudnessEnhancer
 
 /** Owns playback independently of the WebView and supplies Android media notification/controls. */
 class MerajPlaybackService : MediaSessionService() {
@@ -78,15 +79,29 @@ class MerajPlaybackService : MediaSessionService() {
 internal object MerajAudioEffects {
     @Volatile private var sessionId: Int = 0
     @Volatile private var effect: Equalizer? = null
+    @Volatile private var loudness: LoudnessEnhancer? = null
+    @Volatile private var boostTarget = 0
 
     @Synchronized fun attach(id: Int) {
         try {
             effect?.release()
             effect = null
             sessionId = id
-            if (id > 0) effect = Equalizer(0, id).apply { enabled = true }
+            if (id > 0) {
+                effect = Equalizer(0, id).apply { enabled = true }
+                loudness = LoudnessEnhancer(id).apply { setTargetGain(boostTarget); enabled = boostTarget > 0 }
+            }
         } catch (e: Exception) {
             android.util.Log.e("MerajMediaPlayer", "Could not attach Equalizer to session $id", e)
+        }
+    }
+
+    @Synchronized fun setVolumeBoost(gainMillibels: Int) {
+        boostTarget = gainMillibels.coerceIn(0, 600)
+        try {
+            loudness?.let { it.setTargetGain(boostTarget); it.enabled = boostTarget > 0 }
+        } catch (e: Exception) {
+            android.util.Log.e("MerajMediaPlayer", "Could not apply volume boost", e)
         }
     }
 
@@ -122,7 +137,10 @@ internal object MerajAudioEffects {
 
     @Synchronized fun release() {
         try { effect?.release() } catch (_: Exception) {}
+        try { loudness?.release() } catch (_: Exception) {}
         effect = null
+        loudness = null
+        boostTarget = 0
         sessionId = 0
     }
 }

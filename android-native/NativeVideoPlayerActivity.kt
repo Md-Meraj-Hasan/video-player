@@ -2,6 +2,7 @@ package com.meraj.mediaplayer
 
 import android.app.Activity
 import android.app.AlertDialog
+import android.media.AudioManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -72,18 +73,21 @@ class NativeVideoPlayerActivity : Activity() {
     private var locked = false
     private var fitMode = 0
     private var speed = 1f
+    private var themeName = "default"
+    private var accentColor: Int = Color.rgb(155, 105, 255)
     private var volumeMuted = false
     private var seeking = false
-    private var lastTap = 0L
     // Side-swipe gestures: left half adjusts screen brightness; right half adjusts volume.
     private var gestureStartX = 0f
     private var gestureStartY = 0f
     private var gestureStartVolume = 1f
+    private var currentVolumeBoost = 0f
     private var gestureStartBrightness = 0.5f
     private var activeSideGesture = 0 // 0=none, 1=brightness, 2=volume
     private var sideGestureAdjusted = false
     private val handler = Handler(Looper.getMainLooper())
     private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
+    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
     private val progress = object : Runnable {
         override fun run() {
             val p = controller
@@ -107,6 +111,12 @@ class NativeVideoPlayerActivity : Activity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        themeName = intent.getStringExtra(EXTRA_THEME) ?: "default"
+        accentColor = when (themeName) {
+            "green" -> Color.rgb(45, 220, 145)
+            "red" -> Color.rgb(255, 75, 105)
+            else -> Color.rgb(155, 105, 255)
+        }
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         playerView = PlayerView(this).apply {
             useController = false
@@ -152,7 +162,10 @@ class NativeVideoPlayerActivity : Activity() {
                 MotionEvent.ACTION_DOWN -> {
                     gestureStartX = event.x
                     gestureStartY = event.y
-                    gestureStartVolume = controller?.volume ?: 1f
+                    val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+                    val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                    val currentSystemVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+                    gestureStartVolume = (currentSystemVolume.toFloat() / maxSystemVolume + currentVolumeBoost / 600f).coerceIn(0f, 2f)
                     val currentBrightness = window.attributes.screenBrightness
                     gestureStartBrightness = if (currentBrightness in 0.01f..1f) currentBrightness else 0.5f
                     activeSideGesture = 0
@@ -178,20 +191,31 @@ class NativeVideoPlayerActivity : Activity() {
                             window.attributes = attrs
                             updateGestureIndicator(brightness, activeSideGesture)
                         } else if (activeSideGesture == 2) {
-                            val newVolume = (gestureStartVolume + delta * 1.5f).coerceIn(0f, 1f)
-                            controller?.volume = newVolume
+                            val newVolume = (gestureStartVolume + delta * 2f).coerceIn(0f, 2f)
+                            val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+                            val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+                            val systemLevel = newVolume.coerceAtMost(1f)
+                            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (systemLevel * maxSystemVolume).toInt().coerceIn(0, maxSystemVolume), 0)
+                            currentVolumeBoost = (newVolume - 1f).coerceAtLeast(0f) * 600f
+                            MerajAudioEffects.setVolumeBoost(currentVolumeBoost.toInt())
                             volumeMuted = newVolume <= 0.001f
                             if (::volumeButton.isInitialized) volumeButton.text = if (volumeMuted) "🔇" else "🔊"
-                            updateGestureIndicator(newVolume, activeSideGesture)
+                            updateGestureIndicator(newVolume / 2f, activeSideGesture)
                         }
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
                     if (sideGestureAdjusted && !isPinching) {
                         gestureIndicator.visibility = View.GONE
+                    } else if (locked && !isPinching && event.pointerCount <= 1) {
+                        handler.removeCallbacks(hideLockedIndicator)
+                        controls.visibility = View.VISIBLE
+                        topBar.visibility = View.GONE
+                        handler.postDelayed(hideLockedIndicator, 3000)
                     } else if (!locked && !isPinching && event.pointerCount <= 1) {
                         val now = System.currentTimeMillis()
-                        if (now - lastTap < 300) { toggleFit(); lastTap = 0L } else { lastTap = now; toggleControls() }
+                        // Double-tap must not change Fit/Fill mode. Taps only show/hide controls.
+                        toggleControls()
                     }
                     activeSideGesture = 0
                     sideGestureAdjusted = false
@@ -293,11 +317,12 @@ class NativeVideoPlayerActivity : Activity() {
             background = null
         }
         // Requested layout: speed button on the LEFT, title in the middle, share on the RIGHT.
-        speedButton = compactTool("1×  ▾") { showSpeedPicker() }.apply {
+        speedButton = compactTool("⏱") { showSpeedPicker() }.apply {
             contentDescription = "Playback speed menu"
-            background = solidButton(Color.rgb(94, 47, 153))
+            background = null
+            setTextColor(accentColor)
             minWidth = dp(48)
-            textSize = 14f
+            textSize = 23f
             setPadding(dp(6), dp(6), dp(6), dp(6))
             isClickable = true
             isFocusable = true
@@ -310,11 +335,12 @@ class NativeVideoPlayerActivity : Activity() {
             setPadding(dp(8), 0, dp(8), 0)
         }
         top.addView(titleLabel, LinearLayout.LayoutParams(0, dp(48), 1f))
-        shareButton = compactTool("↗  Share") { shareCurrentVideo() }.apply {
+        shareButton = compactTool("↗") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
-            background = solidButton(Color.rgb(94, 47, 153))
+            background = null
+            setTextColor(accentColor)
             minWidth = dp(48)
-            textSize = 14f
+            textSize = 26f
             setPadding(dp(6), dp(6), dp(6), dp(6))
             isClickable = true
             isFocusable = true
@@ -336,13 +362,14 @@ class NativeVideoPlayerActivity : Activity() {
         }
         fun makeIcon(icon: Int, action: () -> Unit): ImageButton = iconButton(icon, action).apply {
             background = null
-            setColorFilter(Color.WHITE)
+            setColorFilter(accentColor)
             setPadding(dp(5), dp(5), dp(5), dp(5))
         }
         fun makeText(label: String, action: () -> Unit): TextView = compactTool(label, action).apply {
             textSize = 21f
             setTextColor(Color.WHITE)
-            background = solidButton(Color.rgb(94, 47, 153))
+            background = null
+            setTextColor(accentColor)
             setPadding(dp(3), dp(5), dp(3), dp(5))
         }
         fun skipButton(reverse: Boolean): View {
@@ -366,7 +393,7 @@ class NativeVideoPlayerActivity : Activity() {
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl))
-        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 29f; contentDescription = "Fit screen" }
+        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 29f; contentDescription = "Cycle Fit, Zoom and Fill modes" }
         rotateButton = makeText("↻") { toggleOrientation() }.apply { contentDescription = "Rotate screen" }
         val previousButton = makeIcon(android.R.drawable.ic_media_previous) {
             controller?.let { p ->
@@ -392,8 +419,16 @@ class NativeVideoPlayerActivity : Activity() {
             lockButton.text = if (locked) "🔒" else "🔓"
             lockButton.contentDescription = if (locked) "Unlock video controls" else "Lock video controls"
             setControlsLocked(locked)
-            if (locked) { handler.removeCallbacks(hideControls); Toast.makeText(this, "Controls locked — tap lock to unlock", Toast.LENGTH_SHORT).show() }
-            else { showControls(); Toast.makeText(this, "Controls unlocked", Toast.LENGTH_SHORT).show() }
+            if (locked) {
+                handler.removeCallbacks(hideControls)
+                handler.removeCallbacks(hideLockedIndicator)
+                handler.postDelayed(hideLockedIndicator, 5000)
+                Toast.makeText(this, "Controls locked — tap screen to show unlock", Toast.LENGTH_SHORT).show()
+            } else {
+                handler.removeCallbacks(hideLockedIndicator)
+                showControls()
+                Toast.makeText(this, "Controls unlocked", Toast.LENGTH_SHORT).show()
+            }
         }
         rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl))
         rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl))
@@ -401,7 +436,7 @@ class NativeVideoPlayerActivity : Activity() {
 
         playButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_play)
-            setColorFilter(Color.WHITE)
+            setColorFilter(accentColor)
             background = null
             setPadding(dp(5), dp(5), dp(5), dp(5))
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
@@ -418,6 +453,9 @@ class NativeVideoPlayerActivity : Activity() {
         val seekRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; orientation = LinearLayout.HORIZONTAL }
         positionLabel = timeLabel("00:00"); seekRow.addView(positionLabel)
         seekBar = SeekBar(this).apply {
+            progressTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            thumbTintList = android.content.res.ColorStateList.valueOf(accentColor)
+            progressBackgroundTintList = android.content.res.ColorStateList.valueOf(Color.argb(90, 255, 255, 255))
             max = 1000
             setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
                 override fun onStartTrackingTouch(sb: SeekBar) { seeking = true; handler.removeCallbacks(hideControls) }
@@ -453,19 +491,15 @@ class NativeVideoPlayerActivity : Activity() {
         context: android.content.Context,
         private val reverse: Boolean
     ) : View(context) {
-        private val bgPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.rgb(94, 47, 153)
-            style = Paint.Style.FILL
-        }
         private val iconPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
+            color = accentColor
             style = Paint.Style.STROKE
             strokeWidth = dp(2).toFloat()
             strokeCap = Paint.Cap.ROUND
             strokeJoin = Paint.Join.ROUND
         }
         private val textPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
-            color = Color.WHITE
+            color = accentColor
             textAlign = Paint.Align.CENTER
             typeface = Typeface.create("sans-serif-medium", Typeface.BOLD)
         }
@@ -474,8 +508,9 @@ class NativeVideoPlayerActivity : Activity() {
             super.onDraw(canvas)
             val w = width.toFloat()
             val h = height.toFloat()
-            val radius = dp(5).toFloat()
-            canvas.drawRoundRect(RectF(0f, 0f, w, h), radius, radius, bgPaint)
+            // Transparent button surface; only the theme-colored icon is drawn.
+            iconPaint.color = accentColor
+            textPaint.color = accentColor
 
             // Clear circular rewind/forward glyph with a readable 15-second mark.
             val cx = w / 2f
@@ -628,57 +663,33 @@ class NativeVideoPlayerActivity : Activity() {
     private fun dp(value: Int): Int = (value * resources.displayMetrics.density).toInt()
 
     private fun showVolumePicker() {
-        val p = controller
-        if (p == null) {
-            Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
-            return
-        }
-        val panel = LinearLayout(this).apply {
-            orientation = LinearLayout.VERTICAL
-            setPadding(dp(22), dp(12), dp(22), dp(8))
-        }
-        val label = TextView(this).apply {
-            text = if (volumeMuted) "Volume: muted" else "Volume: ${(p.volume * 100).toInt()}%"
-            textSize = 14f
-        }
+        val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
+        val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
+        val systemVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
+        val initial = (systemVolume.toFloat() / maxSystemVolume * 100f + currentVolumeBoost / 6f).toInt().coerceIn(0, 200)
+        val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(12), dp(22), dp(8)) }
+        val label = TextView(this).apply { text = "Volume: $initial% (100% = device maximum)"; textSize = 14f }
         panel.addView(label)
-        val slider = SeekBar(this).apply {
-            max = 100
-            progress = if (volumeMuted) 0 else (p.volume * 100).toInt().coerceIn(0, 100)
-        }
+        val slider = SeekBar(this).apply { max = 200; progress = initial }
         panel.addView(slider)
-        val dialog = AlertDialog.Builder(this)
-            .setTitle("Video volume")
-            .setView(panel)
-            .setNegativeButton("Mute", null)
-            .setPositiveButton("Done", null)
-            .create()
+        val dialog = AlertDialog.Builder(this).setTitle("Volume") .setView(panel).setNegativeButton("Mute", null).setPositiveButton("Done", null).create()
+        fun applyVolume(value: Int) {
+            val base = value.coerceAtMost(100)
+            audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (base / 100f * maxSystemVolume).toInt().coerceIn(0, maxSystemVolume), 0)
+            currentVolumeBoost = (value - 100).coerceAtLeast(0) * 6f
+            MerajAudioEffects.setVolumeBoost(currentVolumeBoost.toInt())
+            volumeMuted = value == 0
+            label.text = if (value <= 100) "Volume: $value% (device volume)" else "Volume: $value% (extra boost)"
+            if (::volumeButton.isInitialized) volumeButton.text = if (volumeMuted) "🔇" else "🔊"
+        }
         slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
             override fun onStartTrackingTouch(sb: SeekBar) {}
-            override fun onProgressChanged(sb: SeekBar, value: Int, fromUser: Boolean) {
-                if (!fromUser) return
-                val current = controller ?: return
-                current.volume = value / 100f
-                volumeMuted = value == 0
-                volumeButton.text = if (volumeMuted) "🔇" else "🔊"
-                label.text = if (volumeMuted) "Volume: muted" else "Volume: $value%"
-            }
+            override fun onProgressChanged(sb: SeekBar, value: Int, fromUser: Boolean) { if (fromUser) applyVolume(value) }
             override fun onStopTrackingTouch(sb: SeekBar) {}
         })
         dialog.setOnShowListener {
-            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener {
-                controller?.volume = 0f
-                volumeMuted = true
-                volumeButton.text = "🔇"
-                slider.progress = 0
-                label.text = "Volume: muted"
-            }
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener {
-                if (slider.progress > 0) volumeMuted = false
-                volumeButton.text = if (volumeMuted) "🔇" else "🔊"
-                dialog.dismiss()
-                showControls()
-            }
+            dialog.getButton(AlertDialog.BUTTON_NEGATIVE).setOnClickListener { applyVolume(0); slider.progress = 0 }
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener { dialog.dismiss(); showControls() }
         }
         dialog.show()
         showControls()
@@ -698,7 +709,17 @@ class NativeVideoPlayerActivity : Activity() {
             Toast.makeText(this, "Could not share video: ${e.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
         }
     }
-    private fun toggleFit() { fitMode = (fitMode + 1) % 3; playerView.resizeMode = when (fitMode) { 1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM; 2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL; else -> AspectRatioFrameLayout.RESIZE_MODE_FIT }; fitButton.text = when (fitMode) { 1 -> "Zoom"; 2 -> "Fill"; else -> "Fit" }; showControls() }
+    private fun toggleFit() {
+        fitMode = (fitMode + 1) % 3
+        playerView.resizeMode = when (fitMode) {
+            1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
+            2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
+            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
+        }
+        fitButton.text = when (fitMode) { 1 -> "⌕"; 2 -> "▣"; else -> "⛶" }
+        fitButton.contentDescription = when (fitMode) { 1 -> "Zoom mode"; 2 -> "Fill mode"; else -> "Fit mode" }
+        showControls()
+    }
     private fun toggleOrientation() {
         requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
         root.post {
@@ -743,7 +764,7 @@ class NativeVideoPlayerActivity : Activity() {
                 setOnClickListener {
                     speed = value
                     controller?.setPlaybackSpeed(speed)
-                    speedButton.text = if (speed == 1f) "1×  ▾" else "${speed}×  ▾"
+                    speedButton.text = "⏱"
                     popup?.dismiss()
                     showControls()
                 }
@@ -780,6 +801,7 @@ class NativeVideoPlayerActivity : Activity() {
     companion object {
         const val EXTRA_URI = "com.meraj.mediaplayer.VIDEO_URI"
         const val EXTRA_TITLE = "com.meraj.mediaplayer.VIDEO_TITLE"
+        const val EXTRA_THEME = "com.meraj.mediaplayer.VIDEO_THEME"
         const val EXTRA_QUEUE_URIS = "com.meraj.mediaplayer.VIDEO_QUEUE_URIS"
         const val EXTRA_QUEUE_TITLES = "com.meraj.mediaplayer.VIDEO_QUEUE_TITLES"
         const val EXTRA_QUEUE_MIMES = "com.meraj.mediaplayer.VIDEO_QUEUE_MIMES"
