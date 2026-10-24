@@ -47,9 +47,6 @@
             <p id="player-subtitle">Your videos, stored on this device.</p>
           </div>
           <div class="library-head-actions">
-            <button id="share-video-app" class="icon-action share-icon-action" type="button" aria-label="Share Video" title="Share Video">
-              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2"></path></svg>
-            </button>
             <button id="rescan-library-top" class="icon-action" type="button" aria-label="Rescan videos" title="Rescan">⟳</button>
           </div>
         </div>
@@ -103,29 +100,35 @@
               
               <!-- TOP BAR -->
               <div class="video-overlay-top">
-                <span id="video-overlay-title" class="video-title-display">Now playing</span>
-                <div class="video-speed-wrap">
-                  <button id="video-overlay-speed" class="speed-pill-btn" type="button" aria-label="Speed">
-                    <span id="video-overlay-speed-label">1×</span>
-                  </button>
-                  <div id="video-speed-menu" class="video-speed-menu hidden" role="listbox">
-                    <button type="button" data-speed="0.5">0.5×</button>
-                    <button type="button" data-speed="0.75">0.75×</button>
-                    <button type="button" data-speed="1">1× Normal</button>
-                    <button type="button" data-speed="1.25">1.25×</button>
-                    <button type="button" data-speed="1.5">1.5×</button>
-                    <button type="button" data-speed="2">2×</button>
+                <div class="video-top-left">
+                  <div class="video-speed-wrap">
+                    <button id="video-overlay-speed" class="speed-pill-btn" type="button" aria-label="Playback speed" title="Playback speed">
+                      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1"/><circle cx="12" cy="12" r="7"/><path d="m10 9 5 3-5 3z"/></svg>
+                      <span id="video-overlay-speed-label">1×</span>
+                    </button>
+                    <div id="video-speed-menu" class="video-speed-menu hidden" role="listbox">
+                      <button type="button" data-speed="0.5">0.5×</button>
+                      <button type="button" data-speed="0.75">0.75×</button>
+                      <button type="button" data-speed="1">1× Normal</button>
+                      <button type="button" data-speed="1.25">1.25×</button>
+                      <button type="button" data-speed="1.5">1.5×</button>
+                      <button type="button" data-speed="2">2×</button>
+                    </div>
                   </div>
+                  <span id="video-overlay-title" class="video-title-display">Now playing</span>
                 </div>
+                <button id="share-video-app" class="video-top-share" type="button" aria-label="Share video" title="Share video">
+                  <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2"/></svg>
+                </button>
               </div>
 
               <!-- CENTER BAR: Standard Sequence (Rewind 15s | Prev | Play | Next | Fwd 15s) -->
               <div class="video-overlay-center">
-                <button id="video-overlay-rewind" class="center-btn sec-btn" type="button" title="Back 15 seconds">↶ 15</button>
+                <button id="video-overlay-rewind" class="center-btn sec-btn seek-jump-btn" type="button" title="Back 15 seconds" aria-label="Back 15 seconds"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M18 12H8V2M8 12A19 19 0 1 1 5 25"/><text x="25" y="29" text-anchor="middle">15</text></svg></button>
                 <button id="video-overlay-previous" class="center-btn sec-btn" type="button" title="Previous video">⏮</button>
                 <button id="video-overlay-play" class="center-btn prime-play-btn" type="button" title="Play/Pause">▶</button>
                 <button id="video-overlay-next" class="center-btn sec-btn" type="button" title="Next video">⏭</button>
-                <button id="video-overlay-forward" class="center-btn sec-btn" type="button" title="Forward 15 seconds">15 ↷</button>
+                <button id="video-overlay-forward" class="center-btn sec-btn seek-jump-btn" type="button" title="Forward 15 seconds" aria-label="Forward 15 seconds"><svg viewBox="0 0 48 48" aria-hidden="true"><path d="M30 12h10V2M40 12A19 19 0 1 0 43 25"/><text x="23" y="29" text-anchor="middle">15</text></svg></button>
               </div>
 
               <!-- BOTTOM BAR: Seekbar + Utilities -->

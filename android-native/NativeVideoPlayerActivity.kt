@@ -172,7 +172,7 @@ class NativeVideoPlayerActivity : Activity() {
                             window.attributes = attrs
                             updateGestureIndicator(brightness, activeSideGesture)
                         } else if (activeSideGesture == 2) {
-                            val newVolume = (gestureStartVolume + delta).coerceIn(0f, 1f)
+                            val newVolume = (gestureStartVolume + delta * 1.5f).coerceIn(0f, 1f)
                             controller?.volume = newVolume
                             volumeMuted = newVolume <= 0.001f
                             if (::volumeButton.isInitialized) volumeButton.text = if (volumeMuted) "🔇" else "🔊"
@@ -324,16 +324,15 @@ class NativeVideoPlayerActivity : Activity() {
             setPadding(dp(5), dp(5), dp(5), dp(5))
         }
         fun makeText(label: String, action: () -> Unit): TextView = compactTool(label, action).apply {
-            textSize = 15f
+            textSize = 19f
             setTextColor(Color.WHITE)
             background = null
             setPadding(dp(3), dp(5), dp(3), dp(5))
         }
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.RIGHT }
-        val rewind = makeText("↶5") { controller?.let { it.seekTo((it.currentPosition - 5_000).coerceAtLeast(0)) } }
-        leftGroup.addView(rewind, LinearLayout.LayoutParams(dp(34), dp(48)))
-        fitButton = makeText("Fit") { toggleFit() }
-        leftGroup.addView(fitButton, LinearLayout.LayoutParams(dp(34), dp(48)))
+        val rewind = makeText("↶15") { controller?.let { it.seekTo((it.currentPosition - 15_000).coerceAtLeast(0)) } }
+        leftGroup.addView(rewind, LinearLayout.LayoutParams(dp(48), dp(52)))
+        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 25f; contentDescription = "Fit screen" }
         rotateButton = makeText("↻") { toggleOrientation() }
         leftGroup.addView(rotateButton, LinearLayout.LayoutParams(dp(34), dp(48)))
         val previousButton = makeIcon(android.R.drawable.ic_media_previous) {
@@ -346,14 +345,15 @@ class NativeVideoPlayerActivity : Activity() {
         leftGroup.addView(previousButton, LinearLayout.LayoutParams(dp(40), dp(48)))
         middle.addView(leftGroup, LinearLayout.LayoutParams(0, dp(48), 1f))
 
-        val rightGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT }
+        val rightGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT; tag = "meraj-right-control-group" }
         val nextButton = makeIcon(android.R.drawable.ic_media_next) {
             controller?.let { p -> if (p.hasNextMediaItem()) p.seekToNextMediaItem() else Toast.makeText(this, "No next video in playback queue", Toast.LENGTH_SHORT).show() }
                 ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
-        rightGroup.addView(nextButton, LinearLayout.LayoutParams(dp(40), dp(48)))
+        rightGroup.addView(nextButton, LinearLayout.LayoutParams(dp(48), dp(52)))
         val forward = makeText("15↷") { controller?.let { it.seekTo((it.currentPosition + 15_000).coerceAtMost(it.duration.takeIf { d -> d > 0 } ?: Long.MAX_VALUE)) } }
-        rightGroup.addView(forward, LinearLayout.LayoutParams(dp(40), dp(48)))
+        rightGroup.addView(forward, LinearLayout.LayoutParams(dp(48), dp(52)))
+        rightGroup.addView(fitButton, LinearLayout.LayoutParams(dp(48), dp(52)))
         lockButton = makeText("🔓") {
             locked = !locked
             lockButton.text = if (locked) "🔒" else "🔓"
@@ -362,7 +362,7 @@ class NativeVideoPlayerActivity : Activity() {
             if (locked) { handler.removeCallbacks(hideControls); Toast.makeText(this, "Controls locked — tap lock to unlock", Toast.LENGTH_SHORT).show() }
             else { showControls(); Toast.makeText(this, "Controls unlocked", Toast.LENGTH_SHORT).show() }
         }
-        rightGroup.addView(lockButton, LinearLayout.LayoutParams(dp(40), dp(48)))
+        rightGroup.addView(lockButton, LinearLayout.LayoutParams(dp(48), dp(52)))
         middle.addView(rightGroup, LinearLayout.LayoutParams(0, dp(48), 1f))
 
         playButton = ImageButton(this).apply {
@@ -401,6 +401,8 @@ class NativeVideoPlayerActivity : Activity() {
         seekRow.addView(seekBar, LinearLayout.LayoutParams(0, 34, 1f)); durationLabel = timeLabel("00:00"); seekRow.addView(durationLabel)
         controls.addView(seekRow)
         val controlsParams = FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM)
+        controlsParams.leftMargin = 0
+        controlsParams.rightMargin = 0
         controlsParams.bottomMargin = dp(56)
         root.addView(controls, controlsParams)
         controls.setOnClickListener { showControls() }
@@ -443,18 +445,43 @@ class NativeVideoPlayerActivity : Activity() {
     }
     private fun timeLabel(value: String) = TextView(this).apply { text = value; setTextColor(Color.WHITE); textSize = 12f; setPadding(5, 0, 5, 0) }
     private fun setControlsLocked(value: Boolean) {
-        fun visit(view: View) {
-            if (view === lockButton) return
+        // While locked, hide every control except the lock/unlock button itself.
+        fun containsLock(view: View): Boolean {
+            if (view === lockButton) return true
+            if (view is android.view.ViewGroup) {
+                for (i in 0 until view.childCount) if (containsLock(view.getChildAt(i))) return true
+            }
+            return false
+        }
+        fun applyVisibility(view: View) {
+            if (view === lockButton) {
+                view.visibility = View.VISIBLE
+                view.isEnabled = true
+                view.alpha = 1f
+                return
+            }
+            if (value && !containsLock(view)) {
+                view.visibility = View.GONE
+                return
+            }
+            view.visibility = View.VISIBLE
             view.isEnabled = !value
             if (view is android.view.ViewGroup) {
-                for (i in 0 until view.childCount) visit(view.getChildAt(i))
+                for (i in 0 until view.childCount) applyVisibility(view.getChildAt(i))
             }
         }
-        // Keep the lock button enabled so the user can always unlock the controls.
-        visit(controls)
-        visit(topBar)
-        lockButton.isEnabled = true
-        lockButton.alpha = 1f
+        applyVisibility(controls)
+        topBar.visibility = if (value) View.GONE else View.VISIBLE
+        if (value) {
+            controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER
+            controls.setPadding(0, 0, 0, 0)
+            controls.background = null
+            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = dp(12); controls.layoutParams = it }
+        } else {
+            controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
+            controls.setPadding(dp(8), dp(2), dp(8), dp(4))
+            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = dp(56); controls.layoutParams = it }
+        }
     }
     private fun toggleControls() {
         if (controls.visibility == View.VISIBLE || topBar.visibility == View.VISIBLE) {
