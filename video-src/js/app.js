@@ -471,26 +471,68 @@ function init() {
     e.stopPropagation();
     $('video-speed-menu')?.classList.toggle('hidden');
   });
-
-    const menu = $('video-speed-menu');
-    menu?.querySelectorAll('[data-speed]').forEach((button) => {
-      button.addEventListener('click', (e) => {
-        e.stopPropagation();
-        const speed = Number(button.getAttribute('data-speed'));
-        if (!Number.isFinite(speed) || speed <= 0) return;
-        if (video) video.playbackRate = speed;
-        const label = $('video-overlay-speed-label');
-        if (label) label.textContent = `${speed}×`;
-        menu.classList.add('hidden');
-        resetControlsTimer();
-      });
+  $('video-speed-menu')?.querySelectorAll('[data-speed]').forEach((button) => {
+    button.addEventListener('click', (e) => {
+      e.stopPropagation();
+      const speed = Number(button.getAttribute('data-speed'));
+      if (!Number.isFinite(speed) || !video) return;
+      video.playbackRate = speed;
+      const label = $('video-overlay-speed-label');
+      if (label) label.textContent = speed === 1 ? '1×' : `${speed}×`;
+      $('video-speed-menu')?.classList.add('hidden');
+      resetControlsTimer();
     });
+  });
 
-    document.addEventListener('click', (e) => {
-      if (!e.target.closest('.video-speed-wrap')) {
-        $('video-speed-menu')?.classList.add('hidden');
-      }
-    });
+  $('video-overlay-lock')?.addEventListener('click', (e) => { e.stopPropagation(); lockPlayer(); });
+  $('video-floating-unlock')?.addEventListener('click', (e) => { e.stopPropagation(); unlockPlayer(); });
+  $('collapse-video-stage')?.addEventListener('click', (e) => { e.stopPropagation(); collapseVideo(); });
+  frame?.addEventListener('click', (e) => {
+    if (e.target.closest('button, input, .video-speed-menu, .video-overlay-volume-panel')) return;
+    if (isControlsLocked) showFloatingUnlock();
+    else if (overlay?.classList.contains('hidden')) showControls();
+    else resetControlsTimer();
+  });
+
+  $('video-overlay-landscape')?.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    isLandscapeLocked = !isLandscapeLocked;
+    try {
+      await callNative('orientation', { orientation: isLandscapeLocked ? 'landscape' : 'portrait' });
+    } catch (_) {
+      try {
+        if (isLandscapeLocked && screen.orientation?.lock) await screen.orientation.lock('landscape');
+        else screen.orientation?.unlock?.();
+      } catch (_) {}
+    }
+  });
+
+  $('video-search')?.addEventListener('input', renderPlaylist);
+  $('video-tab-all')?.addEventListener('click', () => {
+    currentFolder = '__all__';
+    $('video-tab-all')?.classList.add('selected');
+    $('video-tab-folders')?.classList.remove('selected');
+    renderFolders(); renderPlaylist();
+  });
+  $('video-tab-folders')?.addEventListener('click', () => {
+    $('video-tab-folders')?.classList.add('selected');
+    $('video-tab-all')?.classList.remove('selected');
+    $('video-folder-strip')?.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  });
+  $('bottom-library')?.addEventListener('click', () => {
+    currentFolder = '__all__'; renderFolders(); renderPlaylist();
+    $('video-tab-all')?.classList.add('selected');
+    $('video-tab-folders')?.classList.remove('selected');
+  });
+  $('bottom-folders')?.addEventListener('click', () => $('video-tab-folders')?.click());
+  $('share-video-app')?.addEventListener('click', () => {
+    window.parent.postMessage({ type: 'meraj-video-share-app' }, '*');
+  });
+
+  // Avoid the previous duplicate welcome/library screens.
+  $('welcome-screen')?.classList.add('hidden');
+  $('player-screen')?.classList.remove('hidden');
+  scanDeviceVideos();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+document.addEventListener('DOMContentLoaded', init, { once: true });
