@@ -1,5 +1,6 @@
 /**
- * Meraj Video Player — Resilient Offline Application Logic
+ * Meraj Video Player — Native Capacitor Bridge & UI Logic
+ * Communicates with parent src/js/app.js via 'meraj-video-native' protocol.
  */
 
 let videos = [];
@@ -9,6 +10,10 @@ let isControlsLocked = false;
 let unlockButtonTimer = null;
 let controlsHideTimer = null;
 let currentDisplayMode = 'fit';
+let isLandscapeLocked = false;
+
+let reqCounter = 0;
+const pendingRequests = new Map();
 
 const $ = (id) => document.getElementById(id);
 
@@ -20,171 +25,141 @@ function formatTime(seconds) {
 }
 
 // ========================================================
-// 1. SAFE RETURN TO AUDIO PLAYER
+// 1. NATIVE BRIDGE REQUEST DISPATCHER (Exact Parent Match)
 // ========================================================
-function returnToAudio() {
-  try {
-    if (window.parent && window.parent !== window) {
-      const parentDoc = window.parent.document;
-      const homeBtn = parentDoc.querySelector('.nav[data-page="home"]')
-                   || parentDoc.querySelector('[data-page="home"]')
-                   || parentDoc.querySelector('.brand[data-page="home"]');
-      if (homeBtn) {
-        homeBtn.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
-        homeBtn.click();
-        return;
-      }
-    }
-  } catch (err) {
-    console.warn('[Meraj Video] Direct parent navigation blocked, using postMessage', err);
-  }
+function callNative(action, payload = {}) {
+  return new Promise((resolve, reject) => {
+    const requestId = 'req_' + (++reqCounter) + '_' + Date.now();
+    pendingRequests.set(requestId, { resolve, reject });
 
-  // Cross-frame fallback messages
-  const navMsgs = [
-    { type: 'meraj:navigateTo', page: 'home' },
-    { type: 'NAVIGATE', page: 'home' },
-    { action: 'navigate', page: 'home' },
-    { type: 'meraj:audioReturn' }
-  ];
-  navMsgs.forEach(msg => {
-    try { window.parent.postMessage(msg, '*'); } catch (e) {}
+    window.parent.postMessage({
+      bridge: 'meraj-video-native',
+      requestId,
+      action,
+      payload
+    }, '*');
+
+    setTimeout(() => {
+      if (pendingRequests.has(requestId)) {
+        pendingRequests.delete(requestId);
+        reject(new Error('Native request timeout: ' + action));
+      }
+    }, 12000);
   });
 }
 
+// Listen for replies from parent src/js/app.js
+window.addEventListener('message', (event) => {
+  const msg = event.data;
+  if (!msg) return;
+
+  // Handle native result
+  if (msg.bridge === 'meraj-video-native-result' && msg.requestId) {
+    const pending = pendingRequests.get(msg.requestId);
+    if (pending) {
+      pendingRequests.delete(msg.requestId);
+      if (msg.ok) pending.resolve(msg.result);
+      else pending.reject(new Error(msg.error || 'Native bridge call failed'));
+    }
+    return;
+  }
+
+  // Handle hardware Android back button
+  if (msg.type === 'meraj-video-native-back') {
+    const frame = $('video-frame');
+    if (frame && !frame.classList.contains('hidden')) {
+      collapseVideo();
+    } else {
+      returnToAudio();
+    }
+    return;
+  }
+
+  // Handle parent navigating away from video tab
+  if (msg.type === 'meraj-video-parent-hide') {
+    const video = $('video-element');
+    if (video) video.pause();
+  }
+});
+
 // ========================================================
-// 2. VIDEO SCANNER TRIGGER & BRIDGE
+// 2. AUDIO RETURN & SCAN LOGIC
 // ========================================================
-function triggerScan() {
+function returnToAudio() {
+  const video = $('video-element');
+  if (video) video.pause();
+  // Exact trigger handled by src/js/app.js
+  window.parent.postMessage({ type: 'meraj-video-switch-audio' }, '*');
+}
+
+async function scanDeviceVideos() {
   const emptyTitle = $('empty-title');
   const emptyDesc = $('empty-description');
   if (emptyTitle) emptyTitle.textContent = "Scanning device for videos…";
   if (emptyDesc) emptyDesc.textContent = "Please wait while local files are loaded.";
 
-  // Direct parent call
   try {
-    if (window.parent && window.parent !== window) {
-      if (typeof window.parent.scanVideos === 'function') window.parent.scanVideos();
-      if (typeof window.parent.triggerVideoScan === 'function') window.parent.triggerVideoScan();
+    // Step 1: Request permission
+    const perm = await callNative('permission');
+    if (perm && perm.granted === false) {
+      if (emptyTitle) emptyTitle.textContent = "Permission Needed";
+      if (emptyDesc) emptyDesc.textContent = "Please grant video/media permission in app settings.";
+      return;
     }
-  } catch (e) {}
 
-  // PostMessage to parent Capacitor bridge
-  const scanEvents = [
-    { type: 'meraj:scanVideos' },
-    { type: 'meraj:scan' },
-    { type: 'SCAN_VIDEOS' },
-    { action: 'scanVideos' },
-    { action: 'scan' },
-    { type: 'requestVideoList' },
-    { type: 'meraj:requestVideoList' }
-  ];
-  scanEvents.forEach(evt => {
-    try { window.parent.postMessage(evt, '*'); } catch (e) {}
-  });
-}
+    // Step 2: Native MediaLibraryScanner.scan({ type: 'video' })
+    const result = await callNative('scan', { type: 'video' });
+    const items = (result && (result.items || result.videos)) || (Array.isArray(result) ? result : []);
 
-function handleIncomingVideos(list) {
-  if (!Array.isArray(list) || list.length === 0) return;
-  videos = list;
-  const empty = $('empty-library');
-  if (empty) empty.classList.add('hidden');
-  renderFolders();
-  renderPlaylist();
-}
+    videos = items.map((x) => ({
+      id: String(x.id || x.uri),
+      uri: x.uri,
+      name: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
+      title: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
+      path: x.relativePath || x.path || 'Device Videos',
+      folder: x.relativePath ? x.relativePath.split('/')[0] : 'Device Videos',
+      duration: Number(x.duration || 0) > 1000 ? Math.floor(Number(x.duration) / 1000) : Number(x.duration || 0),
+      size: Number(x.size || 0),
+      thumbnail: null
+    }));
 
-window.addEventListener('message', (event) => {
-  const data = event.data;
-  if (!data) return;
-
-  let incoming = null;
-  if (Array.isArray(data)) incoming = data;
-  else if (Array.isArray(data.videos)) incoming = data.videos;
-  else if (Array.isArray(data.videoList)) incoming = data.videoList;
-  else if (Array.isArray(data.items)) incoming = data.items;
-  else if (Array.isArray(data.payload)) incoming = data.payload;
-  else if (Array.isArray(data.data)) incoming = data.data;
-
-  if (incoming) {
-    handleIncomingVideos(incoming);
+    if (videos.length > 0) {
+      $('empty-library')?.classList.add('hidden');
+      renderFolders();
+      renderPlaylist();
+      fetchThumbnails();
+    } else {
+      if (emptyTitle) emptyTitle.textContent = "No videos found";
+      if (emptyDesc) emptyDesc.textContent = "No video files were detected on this device storage.";
+    }
+  } catch (err) {
+    console.error('[Meraj Video] Scan error:', err);
+    if (emptyTitle) emptyTitle.textContent = "Scan could not complete";
+    if (emptyDesc) emptyDesc.textContent = "Tap ⟳ Rescan to try again.";
   }
-});
-
-// ========================================================
-// 3. LOCK SYSTEM IMPLEMENTATION
-// ========================================================
-function lockPlayer() {
-  isControlsLocked = true;
-  const frame = $('video-frame');
-  const overlay = $('video-overlay-controls');
-  const speedMenu = $('video-speed-menu');
-  const volPanel = $('video-overlay-volume-panel');
-
-  if (frame) frame.classList.add('is-locked');
-  if (overlay) overlay.classList.add('hidden');
-  if (speedMenu) speedMenu.classList.add('hidden');
-  if (volPanel) volPanel.classList.add('hidden');
-
-  showFloatingUnlock();
 }
 
-function unlockPlayer() {
-  isControlsLocked = false;
-  const frame = $('video-frame');
-  const unlockBtn = $('video-floating-unlock');
-
-  if (frame) frame.classList.remove('is-locked');
-  if (unlockBtn) unlockBtn.classList.add('hidden');
-  clearTimeout(unlockButtonTimer);
-  showControls();
-}
-
-function showFloatingUnlock() {
-  const unlockBtn = $('video-floating-unlock');
-  if (!unlockBtn) return;
-  unlockBtn.classList.remove('hidden');
-  clearTimeout(unlockButtonTimer);
-  unlockButtonTimer = setTimeout(() => {
-    if (isControlsLocked) {
-      unlockBtn.classList.add('hidden');
+// Background thumbnail loader using getThumbnail bridge
+async function fetchThumbnails() {
+  for (let i = 0; i < Math.min(videos.length, 30); i++) {
+    const v = videos[i];
+    if (!v.thumbnail && v.id) {
+      try {
+        const thumbResult = await callNative('getThumbnail', { id: v.id, uri: v.uri });
+        if (thumbResult?.thumbnail) {
+          v.thumbnail = thumbResult.thumbnail;
+          const img = document.querySelector(`[data-thumb-index="${i}"]`);
+          if (img) img.src = v.thumbnail;
+        }
+      } catch (_) {}
     }
-  }, 3500);
-}
-
-// ========================================================
-// 4. OVERLAY SHOW / HIDE TIMERS
-// ========================================================
-function showControls() {
-  if (isControlsLocked) return;
-  const overlay = $('video-overlay-controls');
-  if (overlay) overlay.classList.remove('hidden');
-  resetControlsTimer();
-}
-
-function hideControls() {
-  if (isControlsLocked) return;
-  const overlay = $('video-overlay-controls');
-  const speedMenu = $('video-speed-menu');
-  const volPanel = $('video-overlay-volume-panel');
-  if (overlay) overlay.classList.add('hidden');
-  if (speedMenu) speedMenu.classList.add('hidden');
-  if (volPanel) volPanel.classList.add('hidden');
-  clearTimeout(controlsHideTimer);
-}
-
-function resetControlsTimer() {
-  clearTimeout(controlsHideTimer);
-  const video = $('video-element');
-  if (video && !video.paused) {
-    controlsHideTimer = setTimeout(() => {
-      hideControls();
-    }, 4000);
   }
 }
 
 // ========================================================
-// 5. PLAYBACK ACTIONS & EVENTS
+// 3. PLAYBACK & PREPARE PLAYBACK BRIDGE
 // ========================================================
-function playVideoAtIndex(index) {
+async function playVideoAtIndex(index) {
   if (index < 0 || index >= videos.length) return;
   currentVideoIndex = index;
   const item = videos[index];
@@ -200,21 +175,28 @@ function playVideoAtIndex(index) {
   if (frame) frame.classList.remove('hidden');
   if (video) video.classList.remove('hidden');
 
-  const title = item.name || item.title || 'Playing video';
-  if (overlayTitle) overlayTitle.textContent = title;
-  if (curName) curName.textContent = title;
+  const displayName = item.title || item.name;
+  if (overlayTitle) overlayTitle.textContent = displayName;
+  if (curName) curName.textContent = displayName;
 
-  // Signal Native Media3 Session
   try {
-    window.parent.postMessage({ type: 'meraj:playVideo', video: item, index: index }, '*');
-    window.parent.postMessage({ action: 'playVideo', video: item, index: index }, '*');
-  } catch (e) {}
+    // Notify native bridge to prepare playback
+    const prep = await callNative('preparePlayback', { id: item.id, uri: item.uri, path: item.path }).catch(() => null);
+    const playbackSrc = prep?.uri || prep?.url || prep?.path || item.uri;
 
-  const src = item.url || item.uri || item.path || item.webPath;
-  if (src && video) {
-    video.src = src;
-    video.load();
-    video.play().catch(() => {});
+    // Convert file src if available via Capacitor parent
+    const Cap = window.parent?.Capacitor || window.Capacitor;
+    const finalUrl = (Cap?.convertFileSrc && playbackSrc && !playbackSrc.startsWith('http')) 
+      ? Cap.convertFileSrc(playbackSrc) 
+      : playbackSrc;
+
+    if (finalUrl && video) {
+      video.src = finalUrl;
+      video.load();
+      await video.play().catch(() => {});
+    }
+  } catch (err) {
+    console.warn('[Meraj Video] Playback setup:', err);
   }
 
   if (playBtn) playBtn.textContent = '❚❚';
@@ -222,8 +204,67 @@ function playVideoAtIndex(index) {
   renderPlaylist();
 }
 
+function collapseVideo() {
+  const video = $('video-element');
+  if (video) video.pause();
+  $('media-stage')?.classList.add('hidden');
+  $('video-frame')?.classList.add('hidden');
+}
+
 // ========================================================
-// 6. PLAYLIST & FOLDERS RENDERING
+// 4. LOCK SYSTEM & OVERLAY CONTROLS
+// ========================================================
+function lockPlayer() {
+  isControlsLocked = true;
+  $('video-frame')?.classList.add('is-locked');
+  $('video-overlay-controls')?.classList.add('hidden');
+  $('video-speed-menu')?.classList.add('hidden');
+  $('video-overlay-volume-panel')?.classList.add('hidden');
+  showFloatingUnlock();
+}
+
+function unlockPlayer() {
+  isControlsLocked = false;
+  $('video-frame')?.classList.remove('is-locked');
+  $('video-floating-unlock')?.classList.add('hidden');
+  clearTimeout(unlockButtonTimer);
+  showControls();
+}
+
+function showFloatingUnlock() {
+  const unlockBtn = $('video-floating-unlock');
+  if (!unlockBtn) return;
+  unlockBtn.classList.remove('hidden');
+  clearTimeout(unlockButtonTimer);
+  unlockButtonTimer = setTimeout(() => {
+    if (isControlsLocked) unlockBtn.classList.add('hidden');
+  }, 3500);
+}
+
+function showControls() {
+  if (isControlsLocked) return;
+  $('video-overlay-controls')?.classList.remove('hidden');
+  resetControlsTimer();
+}
+
+function hideControls() {
+  if (isControlsLocked) return;
+  $('video-overlay-controls')?.classList.add('hidden');
+  $('video-speed-menu')?.classList.add('hidden');
+  $('video-overlay-volume-panel')?.classList.add('hidden');
+  clearTimeout(controlsHideTimer);
+}
+
+function resetControlsTimer() {
+  clearTimeout(controlsHideTimer);
+  const video = $('video-element');
+  if (video && !video.paused) {
+    controlsHideTimer = setTimeout(() => hideControls(), 4000);
+  }
+}
+
+// ========================================================
+// 5. PLAYLIST & FOLDERS RENDERING
 // ========================================================
 function renderPlaylist() {
   const playlistEl = $('playlist');
@@ -233,7 +274,7 @@ function renderPlaylist() {
 
   const query = (searchInput?.value || '').toLowerCase().trim();
   const filtered = videos.filter(v => {
-    const matchesSearch = (v.name || v.title || '').toLowerCase().includes(query);
+    const matchesSearch = (v.title || '').toLowerCase().includes(query);
     const matchesFolder = (currentFolder === '__all__' || v.folder === currentFolder);
     return matchesSearch && matchesFolder;
   });
@@ -241,7 +282,7 @@ function renderPlaylist() {
   if (trackCountEl) trackCountEl.textContent = filtered.length;
 
   if (filtered.length === 0) {
-    playlistEl.innerHTML = `<div class="playlist-empty">No videos found. Tap rescan to refresh.</div>`;
+    playlistEl.innerHTML = `<div class="playlist-empty">No videos found. Tap ⟳ Rescan to refresh.</div>`;
     return;
   }
 
@@ -251,11 +292,11 @@ function renderPlaylist() {
     return `
       <div class="video-item ${isActive ? 'active' : ''}" data-index="${originalIndex}">
         <div class="video-thumb">
-          ${v.thumbnail ? `<img src="${v.thumbnail}" alt="">` : '▶'}
+          ${v.thumbnail ? `<img src="${v.thumbnail}" class="thumb-img" data-thumb-index="${originalIndex}" alt="">` : '▶'}
         </div>
         <div class="video-meta">
-          <strong>${v.name || v.title}</strong>
-          <small>${formatTime(v.duration || 0)} • ${v.folder || 'Device Videos'}</small>
+          <strong>${v.title}</strong>
+          <small>${formatTime(v.duration)} • ${v.folder}</small>
         </div>
       </div>
     `;
@@ -291,7 +332,7 @@ function renderFolders() {
 }
 
 // ========================================================
-// 7. INITIALIZE SAFE LISTENERS (ATTACH WHEN DOM IS READY)
+// 6. INITIALIZATION & EVENT BINDINGS
 // ========================================================
 function init() {
   const video = $('video-element');
@@ -302,33 +343,16 @@ function init() {
   const curTime = $('video-current-time');
   const totTime = $('video-total-time');
 
-  // Audio return button
+  // Bottom Audio Return (Exact Bridge Match)
   $('bottom-audio-return')?.addEventListener('click', (e) => {
     e.preventDefault();
     returnToAudio();
   });
 
-  // Rescan buttons
-  $('rescan-library-top')?.addEventListener('click', triggerScan);
-  $('bottom-rescan')?.addEventListener('click', triggerScan);
-  $('choose-video')?.addEventListener('click', triggerScan);
-
-  // File picker fallback
-  const filePicker = $('video-file-picker');
-  filePicker?.addEventListener('change', (e) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length > 0) {
-      const picked = files.map(f => ({
-        name: f.name,
-        title: f.name.replace(/\.[^/.]+$/, ''),
-        url: URL.createObjectURL(f),
-        duration: 0,
-        folder: 'Picked Files'
-      }));
-      handleIncomingVideos(picked);
-      playVideoAtIndex(0);
-    }
-  });
+  // Rescan Buttons
+  $('rescan-library-top')?.addEventListener('click', scanDeviceVideos);
+  $('bottom-rescan')?.addEventListener('click', scanDeviceVideos);
+  $('choose-video')?.addEventListener('click', scanDeviceVideos);
 
   // Play / Pause
   playBtn?.addEventListener('click', (e) => {
@@ -386,7 +410,7 @@ function init() {
     resetControlsTimer();
   });
 
-  // 15s Rewind / Forward
+  // Transport: Rewind 15s | Previous | Next | Forward 15s
   $('video-overlay-rewind')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (video) video.currentTime = Math.max(0, video.currentTime - 15);
@@ -410,7 +434,7 @@ function init() {
     if (currentVideoIndex < videos.length - 1) playVideoAtIndex(currentVideoIndex + 1);
   });
 
-  // Display Fit Modes
+  // Display Fit Modes (Fit -> Zoom -> Stretch)
   $('video-overlay-display')?.addEventListener('click', (e) => {
     e.stopPropagation();
     if (!video) return;
@@ -431,7 +455,7 @@ function init() {
     resetControlsTimer();
   });
 
-  // Volume
+  // Volume Slider
   $('video-overlay-volume')?.addEventListener('click', (e) => {
     e.stopPropagation();
     $('video-overlay-volume-panel')?.classList.toggle('hidden');
@@ -442,108 +466,7 @@ function init() {
     video.volume = e.target.value / 100;
   });
 
-  // Speed
+  // Playback Speed
   $('video-overlay-speed')?.addEventListener('click', (e) => {
     e.stopPropagation();
     $('video-speed-menu')?.classList.toggle('hidden');
-  });
-
-  $('video-speed-menu')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    const speed = e.target.getAttribute('data-speed');
-    if (speed && video) {
-      video.playbackRate = parseFloat(speed);
-      const label = $('video-overlay-speed-label');
-      if (label) label.textContent = `${speed}×`;
-      $('video-speed-menu')?.classList.add('hidden');
-      resetControlsTimer();
-    }
-  });
-
-  // Lock & Unlock
-  $('video-overlay-lock')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    lockPlayer();
-  });
-
-  $('video-floating-unlock')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    unlockPlayer();
-  });
-
-  frame?.addEventListener('click', (e) => {
-    if (e.target.closest('button') || e.target.closest('.video-speed-menu') || e.target.closest('.video-overlay-volume-panel')) {
-      return;
-    }
-    if (isControlsLocked) {
-      showFloatingUnlock();
-      return;
-    }
-    if (overlay?.classList.contains('hidden')) showControls();
-    else hideControls();
-  });
-
-  overlay?.addEventListener('click', () => resetControlsTimer());
-
-  // Landscape
-  $('video-overlay-landscape')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    try {
-      if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
-      else if (frame?.requestFullscreen) frame.requestFullscreen().catch(() => {});
-    } catch (err) {}
-    window.parent.postMessage({ type: 'meraj:toggleOrientation' }, '*');
-    resetControlsTimer();
-  });
-
-  // Collapse Stage
-  $('collapse-video-stage')?.addEventListener('click', (e) => {
-    e.stopPropagation();
-    video?.pause();
-    $('media-stage')?.classList.add('hidden');
-    $('video-frame')?.classList.add('hidden');
-  });
-
-  // Tabs & Search
-  $('video-search')?.addEventListener('input', renderPlaylist);
-
-  $('video-tab-all')?.addEventListener('click', () => {
-    $('video-tab-all')?.classList.add('selected');
-    $('video-tab-folders')?.classList.remove('selected');
-    currentFolder = '__all__';
-    renderFolders();
-    renderPlaylist();
-  });
-
-  $('video-tab-folders')?.addEventListener('click', () => {
-    $('video-tab-folders')?.classList.add('selected');
-    $('video-tab-all')?.classList.remove('selected');
-    $('video-folder-strip')?.scrollIntoView({ behavior: 'smooth' });
-  });
-
-  $('bottom-library')?.addEventListener('click', () => {
-    $('video-tab-all')?.click();
-    window.scrollTo({ top: 0, behavior: 'smooth' });
-  });
-
-  $('bottom-folders')?.addEventListener('click', () => {
-    $('video-tab-folders')?.click();
-  });
-
-  $('share-video-app')?.addEventListener('click', () => {
-    if (currentVideoIndex >= 0 && videos[currentVideoIndex]) {
-      window.parent.postMessage({ type: 'meraj:shareMedia', media: videos[currentVideoIndex] }, '*');
-    }
-  });
-
-  // Auto request library videos
-  try {
-    window.parent.postMessage({ type: 'meraj:requestVideoList' }, '*');
-  } catch (e) {}
-}
-
-if (document.readyState === 'loading') {
-  document.addEventListener('DOMContentLoaded', init);
-} else {
-  init();
-}
