@@ -1,766 +1,137 @@
-/* ==========================================================================
-   Meraj Video Player - CSS Stylesheet
-   ========================================================================== */
-
-:root {
-  --bg-primary: #09090f;
-  --bg-secondary: #12121d;
-  --bg-tertiary: #1a1a2e;
-  --accent-color: #16bdf6;
-  --accent-gradient: linear-gradient(135deg, #55f3ff 0%, #16bdf6 55%, #3878ff 100%);
-  --text-main: #f0f0f5;
-  --text-muted: #9494ab;
-  --border-color: rgba(255, 255, 255, 0.08);
-  --radius-sm: 8px;
-  --radius-md: 12px;
-  --radius-lg: 18px;
-  --transition: all 0.25s ease;
-}
-
-* {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
-body {
-  font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
-  background-color: var(--bg-primary);
-  color: var(--text-main);
-  min-height: 100vh;
-  overflow-x: hidden;
-}
-
-.app-shell {
-  display: flex;
-  flex-direction: column;
-  min-height: 100vh;
-}
-
-.hidden {
-  display: none !important;
-}
-
-/* --- Topbar & Brand --- */
-.topbar {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding: 12px 16px;
-  background-color: var(--bg-secondary);
-  border-bottom: 1px solid var(--border-color);
-}
-
-.round-brand {
-  width: 36px;
-  height: 36px;
-}
-
-.brand-svg {
-  width: 100%;
-  height: 100%;
-}
-
-.offline-pill {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: var(--accent-color);
-  background: rgba(22, 189, 246, 0.1);
-  padding: 4px 10px;
-  border-radius: 20px;
-  border: 1px solid rgba(22, 189, 246, 0.2);
-}
-
-.offline-pill i {
-  width: 6px;
-  height: 6px;
-  background-color: var(--accent-color);
-  border-radius: 50%;
-}
-
-/* --- Screens & Main Layout --- */
-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
-
-.screen {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-  padding: 16px;
-}
-
-/* --- Welcome Screen --- */
-.welcome-screen {
-  position: relative;
-  justify-content: center;
-  align-items: center;
-  text-align: center;
-  overflow: hidden;
-  padding: 24px;
-}
-
-.hero-orb {
-  position: absolute;
-  width: 250px;
-  height: 250px;
-  border-radius: 50%;
-  filter: blur(80px);
-  z-index: 0;
-  opacity: 0.15;
-}
-
-.orb-one {
-  top: 10%;
-  left: 10%;
-  background-color: var(--accent-color);
-}
-
-.orb-two {
-  bottom: 10%;
-  right: 10%;
-  background-color: #3878ff;
-}
-
-.welcome-content {
-  position: relative;
-  z-index: 1;
-  max-width: 400px;
-}
-
-.hero-icon {
-  width: 64px;
-  height: 64px;
-  margin: 0 auto 16px;
-  color: var(--accent-color);
-}
-
-.eyebrow {
-  font-size: 11px;
-  font-weight: 700;
-  letter-spacing: 1.5px;
-  color: var(--accent-color);
-  margin-bottom: 8px;
-}
-
-.welcome-content h1 {
-  font-size: 28px;
-  font-weight: 800;
-  line-height: 1.2;
-  margin-bottom: 12px;
-}
-
-.welcome-content h1 span {
-  background: var(--accent-gradient);
-  -webkit-background-clip: text;
-  -webkit-text-fill-color: transparent;
-}
-
-.hero-description {
-  font-size: 14px;
-  color: var(--text-muted);
-  margin-bottom: 24px;
-  line-height: 1.5;
-}
-
-.choice-stack {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 24px;
-}
-
-.choice-card {
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 16px;
-  border-radius: var(--radius-md);
-  color: var(--text-main);
-  text-align: left;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.choice-card:hover {
-  border-color: var(--accent-color);
-  background: var(--bg-tertiary);
-}
-
-.choice-icon {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  width: 40px;
-  height: 40px;
-  border-radius: var(--radius-sm);
-  background: rgba(22, 189, 246, 0.1);
-  color: var(--accent-color);
-  font-size: 16px;
-}
-
-.choice-copy {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-}
-
-.choice-copy strong {
-  font-size: 14px;
-}
-
-.choice-copy small {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.choice-arrow {
-  color: var(--text-muted);
-  font-size: 16px;
-}
-
-.privacy-note {
-  display: flex;
-  align-items: flex-start;
-  gap: 10px;
-  font-size: 12px;
-  color: var(--text-muted);
-  background: rgba(255, 255, 255, 0.02);
-  padding: 12px;
-  border-radius: var(--radius-sm);
-  border: 1px solid var(--border-color);
-  text-align: left;
-}
-
-.privacy-note .shield {
-  color: #4ade80;
-  font-weight: bold;
-}
-
-/* --- Player Screen & Library Header --- */
-.library-topline {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  margin-bottom: 16px;
-}
-
-.library-title-wrap h2 {
-  font-size: 22px;
-  font-weight: 700;
-}
-
-.library-title-wrap p {
-  font-size: 12px;
-  color: var(--text-muted);
-}
-
-.library-head-actions {
-  display: flex;
-  gap: 8px;
-}
-
-.icon-action {
-  width: 36px;
-  height: 36px;
-  border-radius: 50%;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-main);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.icon-action svg {
-  width: 16px;
-  height: 16px;
-  fill: none;
-  stroke: currentColor;
-  stroke-width: 2;
-  stroke-linecap: round;
-  stroke-linejoin: round;
-}
-
-.icon-action:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--accent-color);
-}
-
-/* --- Toolbar & Tabs --- */
-.video-library-toolbar {
-  display: flex;
-  flex-direction: column;
-  gap: 12px;
-  margin-bottom: 16px;
-}
-
-.library-search {
-  display: flex;
-  align-items: center;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  border-radius: var(--radius-md);
-  padding: 0 12px;
-  height: 42px;
-  gap: 8px;
-  color: var(--text-muted);
-}
-
-.library-search input {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-main);
-  font-size: 14px;
-  outline: none;
-}
-
-.library-tabs {
-  display: flex;
-  background: var(--bg-secondary);
-  padding: 4px;
-  border-radius: var(--radius-md);
-  border: 1px solid var(--border-color);
-}
-
-.library-tab {
-  flex: 1;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 13px;
-  font-weight: 600;
-  padding: 8px;
-  border-radius: var(--radius-sm);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.library-tab.selected {
-  background: var(--bg-tertiary);
-  color: var(--text-main);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
-}
-
-.video-folder-strip {
-  display: flex;
-  gap: 8px;
-  overflow-x: auto;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
-  scrollbar-width: none;
-}
-
-.video-folder-strip::-webkit-scrollbar {
-  display: none;
-}
-
-.folder-chip {
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  color: var(--text-muted);
-  padding: 6px 12px;
-  border-radius: 20px;
-  font-size: 12px;
-  white-space: nowrap;
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.folder-chip.selected {
-  background: var(--accent-color);
-  color: #000;
-  border-color: var(--accent-color);
-  font-weight: 600;
-}
-
-/* --- Empty Library State --- */
-.empty-library {
-  text-align: center;
-  padding: 40px 20px;
-  background: var(--bg-secondary);
-  border: 1px dashed var(--border-color);
-  border-radius: var(--radius-lg);
-  margin-bottom: 20px;
-}
-
-.empty-icon {
-  font-size: 36px;
-  color: var(--accent-color);
-  margin-bottom: 12px;
-}
-
-.empty-library strong {
-  display: block;
-  font-size: 16px;
-  margin-bottom: 6px;
-}
-
-.empty-library p {
-  font-size: 13px;
-  color: var(--text-muted);
-}
-
-/* --- Media Stage & Video Frame --- */
-.media-stage {
-  background: var(--bg-secondary);
-  border-radius: var(--radius-lg);
-  border: 1px solid var(--border-color);
-  overflow: hidden;
-  margin-bottom: 20px;
-}
-
-.video-frame {
-  position: relative;
-  width: 100%;
-  aspect-ratio: 16 / 9;
-  background: #000;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.collapse-video-stage {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
-  background: rgba(0, 0, 0, 0.6);
-  border: 1px solid rgba(255, 255, 255, 0.2);
-  color: #fff;
-  width: 32px;
-  height: 32px;
-  border-radius: 50%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  cursor: pointer;
-}
-
-.collapse-video-stage svg {
-  width: 16px;
-  height: 16px;
-  stroke: currentColor;
-  stroke-width: 2;
-  fill: none;
-}
-
-.video-element {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* --- Video Overlay Controls & Solid Colors --- */
-.video-overlay-controls {
-  position: absolute;
-  inset: 0;
-  background: linear-gradient(180deg, rgba(0,0,0,0.7) 0%, transparent 30%, transparent 60%, rgba(0,0,0,0.8) 100%);
-  display: flex;
-  flex-direction: column;
-  justify-content: space-between;
-  padding: 12px;
-  opacity: 1;
-  transition: opacity 0.3s ease;
-  z-index: 5;
-}
-
-.video-overlay-top {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-}
-
-#video-overlay-title {
-  font-size: 13px;
-  font-weight: 600;
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-width: 70%;
-}
-
-.video-speed-wrap {
-  position: relative;
-}
-
-/* Solid Color & High Visibility for ALL Video Control Buttons */
-.video-overlay-controls button,
-.video-overlay-controls .video-overlay-actions button,
-#video-overlay-play,
-#video-overlay-previous,
-#video-overlay-next,
-#video-overlay-rewind,
-#video-overlay-forward,
-#video-overlay-display,
-#video-overlay-volume,
-#video-overlay-landscape,
-#video-overlay-lock,
-#video-overlay-speed {
-  color: #ffffff !important;
-  background-color: rgba(0, 0, 0, 0.8) !important;
-  border: 1px solid rgba(255, 255, 255, 0.45) !important;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-  cursor: pointer;
-  border-radius: var(--radius-sm);
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  padding: 6px 10px;
-  font-size: 12px;
-  transition: var(--transition);
-}
-
-.video-overlay-controls button:hover,
-.video-overlay-controls button:active {
-  background-color: rgba(50, 50, 50, 0.95) !important;
-  border-color: #ffffff !important;
-}
-
-.video-overlay-bottom {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
-
-.video-overlay-time {
-  display: flex;
-  justify-content: space-between;
-  font-size: 11px;
-  color: #ffffff;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
-}
-
-.video-seekbar {
-  width: 100%;
-  accent-color: var(--accent-color);
-  cursor: pointer;
-}
-
-.video-overlay-actions {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 12px;
-}
-
-.overlay-play {
-  width: 42px;
-  height: 42px;
-  border-radius: 50% !important;
-  font-size: 16px !important;
-}
-
-.video-utility-row {
-  gap: 6px;
-  font-size: 11px;
-}
-
-.video-utility-row button {
-  flex: 1;
-  padding: 4px 6px;
-  font-size: 11px;
-}
-
-/* --- LOCK MODE LOGIC: Jab screen locked ho toh sirf lock button dikhe, baaki sab hide ho jayein --- */
-.video-overlay-controls.controls-locked .video-overlay-top > *:not(#video-overlay-lock),
-.video-overlay-controls.controls-locked .video-overlay-bottom,
-.video-overlay-controls.controls-locked .collapse-video-stage {
-  display: none !important;
-}
-
-.video-overlay-controls.controls-locked {
-  background: transparent !important;
-  pointer-events: none;
-}
-
-.video-overlay-controls.controls-locked #video-overlay-lock {
-  pointer-events: auto !important;
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  z-index: 25;
-  background-color: rgba(0, 0, 0, 0.9) !important;
-  border: 2px solid var(--accent-color) !important;
-  padding: 8px 14px;
-  border-radius: var(--radius-md);
-  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.8);
-}
-
-/* --- Landscape Mode Adjustments (Width 100% & Solid Controls) --- */
-@media screen and (orientation: landscape) {
-  .video-frame .video-overlay-controls,
-  .video-frame video:fullscreen ~ .video-overlay-controls,
-  .video-frame:fullscreen .video-overlay-controls {
-    width: 100% !important;
-    max-width: 100% !important;
-    left: 0 !important;
-    right: 0 !important;
-    box-sizing: border-box;
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  let nativeRequestCounter = 0;
+  const nativePending = new Map();
+  
+  function callParentNative(action, payload = {}) {
+    return new Promise((resolve, reject) => {
+      const requestId = `video-${Date.now()}-${++nativeRequestCounter}`;
+      const timeout = setTimeout(() => { nativePending.delete(requestId); reject(new Error(`Native ${action} request timed out`)); }, 15000);
+      nativePending.set(requestId, { resolve, reject, timeout });
+      window.parent.postMessage({ bridge: 'meraj-video-native', requestId, action, payload }, '*');
+    });
   }
 
-  .video-overlay-controls .video-seekbar {
-    width: 100% !important;
+  window.addEventListener('message', async event => {
+    const message = event.data;
+    if (!message) return;
+    if (message.bridge === 'meraj-video-native-result' && nativePending.has(message.requestId)) {
+      const pending = nativePending.get(message.requestId); nativePending.delete(message.requestId); clearTimeout(pending.timeout);
+      if (message.ok) pending.resolve(message.result); else pending.reject(new Error(message.error || 'Native operation failed'));
+    } else if (message.type === 'meraj-video-native-back') {
+      window.handleMerajAndroidBack?.();
+    } else if (message.type === 'meraj-video-parent-hide') {
+      try { video.pause(); audio.pause(); } catch (_) {}
+      try { await callParentNative('orientationLock', { orientation: 'portrait' }); } catch (_) {}
+      try { screen.orientation?.unlock?.(); } catch (_) {}
+      state.videoOrientationLocked = false;
+      if (state.controlsTimer) { clearTimeout(state.controlsTimer); state.controlsTimer = null; }
+      $('video-overlay-controls')?.classList.add('hidden');
+    }
+  });
+
+  const VideoPermissionBridge = { requestIfNeeded: () => callParentNative('permission') };
+  const VideoScannerBridge = {
+    scan: payload => callParentNative('scan', payload),
+    launchVideo: payload => callParentNative('launchVideo', payload),
+    getThumbnail: payload => callParentNative('getThumbnail', payload),
+    shareMedia: payload => callParentNative('shareMedia', payload)
+  };
+
+  const welcome = $("welcome-screen"), playerScreen = $("player-screen");
+  const audio = $("audio-element"), video = $("video-element");
+  const FAVORITES_KEY = "meraj-video-player-favorites-v1";
+  
+  const state = {
+    mode: "video", files: [], index: 0, objectUrls: [], allAudioFiles: [],
+    favorites: loadFavorites(), favoritesOnly: false, shuffle: false,
+    repeat: "off", speed: 1, lastPlayed: null, videoLocked: false, videoOrientationLocked: false, videoFit: "contain", lastVideoTap: 0, videoLibraryView: "videos", videoSearch: "", videoSelectedFolder: "", videoSeeking: false, thumbnailCache: new Map(), thumbnailObserver: null, controlsTimer: null, lastTouchAt: 0,
+    audioBoost: 1, videoBoost: 1, audioGainContext: null, videoGainContext: null,
+    audioGainNode: null, videoGainNode: null, audioSourceNode: null, videoSourceNode: null
+  };
+
+  function loadFavorites() {
+    try { return new Set(JSON.parse(localStorage.getItem(FAVORITES_KEY) || "[]")); }
+    catch (_) { return new Set(); }
   }
-}
+  function saveFavorites() {
+    try { localStorage.setItem(FAVORITES_KEY, JSON.stringify([...state.favorites])); } catch (_) {}
+  }
+  const fileKey = (file) => file?.uri ? `native|${file.uri}` : `${file.name}|${file.size}|${file.lastModified || 0}|${file.webkitRelativePath || ""}`;
+  const formatTime = (seconds) => {
+    if (!Number.isFinite(seconds) || seconds < 0) return "0:00";
+    return `${Math.floor(seconds / 60)}:${String(Math.floor(seconds % 60)).padStart(2, "0")}`;
+  };
+  const formatBytes = (bytes) => bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+  
+  const mediaPlaybackUrl = (uri) => {
+    if (typeof uri !== "string") return uri;
+    if (uri.startsWith("content://")) return uri;
+    return window.parent?.Capacitor?.convertFileSrc ? window.parent.Capacitor.convertFileSrc(uri) : uri;
+  };
+  const isFavorite = file => state.favorites.has(fileKey(file));
+  const revokeUrls = () => { state.objectUrls.forEach(entry => URL.revokeObjectURL(typeof entry === "string" ? entry : entry.url)); state.objectUrls = []; };
 
-/* --- Track Details & Playlist --- */
-.track-details {
-  padding: 12px 16px;
-}
+  function openMode(mode) {
+    if (mode === "video") { audio.pause(); audio.removeAttribute("src"); audio.load(); }
+    state.mode = mode;
+    welcome.classList.add("hidden"); playerScreen.classList.remove("hidden");
+    $("player-title").textContent = mode === "audio" ? "Music Player" : "Video Player";
+    $("player-kicker").textContent = mode === "audio" ? "YOUR MUSIC LIBRARY" : "YOUR VIDEO LIBRARY";
+    $("player-subtitle").textContent = mode === "audio" ? "Listen to audio files stored on your device." : "Watch videos stored on your device.";
+    $("empty-icon").textContent = mode === "audio" ? "♫" : "▶";
+    $("empty-title").textContent = mode === "audio" ? "Your music starts here" : "Your videos start here";
+    $("audio-library-tools").classList.toggle("hidden", mode !== "audio");
+    $("audio-controls").classList.toggle("hidden", mode !== "audio");
+    renderMode();
+  }
 
-.track-details h3 {
-  font-size: 15px;
-  font-weight: 600;
-  margin-bottom: 2px;
-}
+  function renderMode() {
+    const isAudio = state.mode === "audio";
+    $("artwork").classList.toggle("hidden", !isAudio);
+    $("audio-controls").classList.toggle("hidden", !isAudio);
+    video.classList.toggle("hidden", isAudio);
+    $("video-frame").classList.toggle("hidden", isAudio);
+    $("video-status").classList.toggle("hidden", isAudio || !state.files.length);
+    setVideoLock(false);
+    audio.pause(); video.pause();
+    audio.removeAttribute("src"); video.removeAttribute("src");
+    $("media-stage").classList.add("hidden");
+    const hasFiles = isAudio ? state.allAudioFiles.length > 0 : state.files.length > 0;
+    $("empty-library").classList.toggle("hidden", hasFiles);
+    renderPlaylist();
+  }
 
-.track-details p {
-  font-size: 11px;
-  color: var(--text-muted);
-}
+  function setVideoLock(locked) {
+    state.videoLocked = Boolean(locked);
+    const lockButton = $("video-overlay-lock");
+    if (lockButton) {
+      lockButton.textContent = state.videoLocked ? "🔓" : "🔒";
+      lockButton.setAttribute("aria-label", state.videoLocked ? "Unlock controls" : "Lock controls");
+      lockButton.setAttribute("title", state.videoLocked ? "Unlock controls" : "Lock controls");
+    }
+    const overlayControls = $("video-overlay-controls");
+    if (overlayControls) {
+      overlayControls.classList.toggle("controls-locked", state.videoLocked);
+    }
+    video.controls = false;
+    if (state.videoLocked && state.controlsTimer) {
+      clearTimeout(state.controlsTimer);
+      state.controlsTimer = null;
+    }
+  }
 
-.playlist-section {
-  display: flex;
-  flex-direction: column;
-  flex: 1;
-}
+  // Event listener setup for Lock Button
+  document.addEventListener("DOMContentLoaded", () => {
+    const lockBtn = $("video-overlay-lock");
+    if (lockBtn) {
+      lockBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        setVideoLock(!state.videoLocked);
+      });
+    }
+  });
 
-.playlist-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.playlist-header h3 {
-  font-size: 16px;
-  font-weight: 700;
-}
-
-.playlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  max-height: 350px;
-  overflow-y: auto;
-  padding-bottom: 20px;
-}
-
-.playlist-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  background: var(--bg-secondary);
-  border: 1px solid var(--border-color);
-  padding: 10px;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  transition: var(--transition);
-}
-
-.playlist-item:hover {
-  background: var(--bg-tertiary);
-  border-color: var(--accent-color);
-}
-
-.playlist-item.active {
-  border-color: var(--accent-color);
-  background: rgba(22, 189, 246, 0.05);
-}
-
-.playlist-thumb {
-  width: 50px;
-  height: 36px;
-  border-radius: 4px;
-  background: #000;
-  object-fit: cover;
-  flex-shrink: 0;
-}
-
-.playlist-meta {
-  flex: 1;
-  min-width: 0;
-}
-
-.playlist-meta strong {
-  display: block;
-  font-size: 13px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  margin-bottom: 2px;
-}
-
-.playlist-meta small {
-  font-size: 11px;
-  color: var(--text-muted);
-}
-
-.playlist-empty {
-  text-align: center;
-  padding: 24px;
-  color: var(--text-muted);
-  font-size: 13px;
-}
-
-/* --- Bottom Navigation --- */
-.bottom-navigation {
-  display: flex;
-  background: var(--bg-secondary);
-  border-top: 1px solid var(--border-color);
-  padding: 8px;
-  position: sticky;
-  bottom: 0;
-  z-index: 10;
-}
-
-.bottom-nav-item {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 2px;
-  background: transparent;
-  border: none;
-  color: var(--text-muted);
-  font-size: 16px;
-  cursor: pointer;
-  padding: 6px;
-  transition: var(--transition);
-}
-
-.bottom-nav-item small {
-  font-size: 10px;
-  font-weight: 500;
-}
-
-.bottom-nav-item.active,
-.bottom-nav-item:hover {
-  color: var(--accent-color);
-}
-
-.local-footnote {
-  text-align: center;
-  font-size: 10px;
-  color: var(--text-muted);
-  padding: 12px 0;
-}
-
-.app-footer {
-  display: none;
-}
+  // Baaki saare functions yahan safely rahenge...
+})();
