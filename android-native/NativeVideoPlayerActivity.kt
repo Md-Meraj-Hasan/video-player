@@ -543,7 +543,7 @@ class NativeVideoPlayerActivity : Activity() {
                         }
                         else -> { // Fill: a clean frame with solid center
                             paint.style = Paint.Style.STROKE
-                            canvas.drawRoundRect(RectF(cx-unit, cy-unit, cx+unit, cy+unit), dp(2).toFloat(), dp(2).toFloat(), paint)
+                            canvas.drawRect(RectF(cx-unit, cy-unit, cx+unit, cy+unit), paint)
                             paint.style = Paint.Style.FILL
                             canvas.drawRect(cx-unit*.48f, cy-unit*.48f, cx+unit*.48f, cy+unit*.48f, paint)
                             paint.style = Paint.Style.STROKE
@@ -573,7 +573,7 @@ class NativeVideoPlayerActivity : Activity() {
                     val bottom = cy + bh
                     val shackle = RectF(cx - bw*.32f, cy - unit*.95f, cx + bw*.32f, top + unit*.2f)
                     canvas.drawArc(shackle, 180f, 180f, false, paint)
-                    canvas.drawRoundRect(RectF(left, top, right, bottom), dp(2).toFloat(), dp(2).toFloat(), paint)
+                    canvas.drawRect(RectF(left, top, right, bottom), paint)
                     canvas.drawCircle(cx, top + bh*.42f, dp(1.8f).toFloat(), paint)
                     canvas.drawLine(cx, top + bh*.42f, cx, top + bh*.66f, paint)
                 }
