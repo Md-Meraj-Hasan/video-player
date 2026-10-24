@@ -574,7 +574,7 @@ class NativeVideoPlayerActivity : Activity() {
                     val shackle = RectF(cx - bw*.32f, cy - unit*.95f, cx + bw*.32f, top + unit*.2f)
                     canvas.drawArc(shackle, 180f, 180f, false, paint)
                     canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), paint)
-                    canvas.drawCircle(cx, top + bh*.42f, dp(1.8f).toFloat(), paint)
+                    canvas.drawCircle(cx, top + bh*.42f, dp(2).toFloat(), paint)
                     canvas.drawLine(cx, top + bh*.42f, cx, top + bh*.66f, paint)
                 }
             }
