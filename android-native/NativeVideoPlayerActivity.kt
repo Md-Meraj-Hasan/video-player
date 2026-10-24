@@ -317,7 +317,14 @@ class NativeVideoPlayerActivity : Activity() {
 
         // Transparent, balanced control row: previous immediately left of the centered Play/Pause,
         // next immediately right. Remaining actions are distributed on both sides.
-        val middle = LinearLayout(this).apply { minimumHeight = dp(50); orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER_VERTICAL; weightSum = 2f }
+        val middle = LinearLayout(this).apply {
+            minimumHeight = dp(50)
+            orientation = LinearLayout.HORIZONTAL
+            gravity = Gravity.CENTER_VERTICAL
+            weightSum = 2f
+            // Always occupy the full available player width, including landscape.
+            layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50))
+        }
         fun makeIcon(icon: Int, action: () -> Unit): ImageButton = iconButton(icon, action).apply {
             background = null
             setColorFilter(Color.WHITE)
@@ -400,10 +407,16 @@ class NativeVideoPlayerActivity : Activity() {
         }
         seekRow.addView(seekBar, LinearLayout.LayoutParams(0, 34, 1f)); durationLabel = timeLabel("00:00"); seekRow.addView(durationLabel)
         controls.addView(seekRow)
-        val controlsParams = FrameLayout.LayoutParams(-1, -2, Gravity.BOTTOM)
+        val controlsParams = FrameLayout.LayoutParams(
+            FrameLayout.LayoutParams.MATCH_PARENT,
+            FrameLayout.LayoutParams.WRAP_CONTENT,
+            Gravity.BOTTOM
+        )
         controlsParams.leftMargin = 0
         controlsParams.rightMargin = 0
         controlsParams.bottomMargin = dp(56)
+        controls.layoutParams = controlsParams
+        controls.isFocusable = false
         root.addView(controls, controlsParams)
         controls.setOnClickListener { showControls() }
     }
@@ -476,11 +489,31 @@ class NativeVideoPlayerActivity : Activity() {
             controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER
             controls.setPadding(0, 0, 0, 0)
             controls.background = null
-            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = dp(12); controls.layoutParams = it }
+            (controls.layoutParams as? FrameLayout.LayoutParams)?.let {
+                it.width = FrameLayout.LayoutParams.MATCH_PARENT
+                it.leftMargin = 0
+                it.rightMargin = 0
+                it.bottomMargin = dp(12)
+                controls.layoutParams = it
+            }
         } else {
             controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
-            controls.setPadding(dp(8), dp(2), dp(8), dp(4))
-            (controls.layoutParams as? FrameLayout.LayoutParams)?.let { it.bottomMargin = dp(56); controls.layoutParams = it }
+            val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+            controls.setPadding(if (landscape) dp(4) else dp(8), dp(2), if (landscape) dp(4) else dp(8), dp(4))
+            (controls.layoutParams as? FrameLayout.LayoutParams)?.let {
+                // Explicitly stretch the complete control strip edge-to-edge in landscape.
+                it.width = FrameLayout.LayoutParams.MATCH_PARENT
+                it.leftMargin = 0
+                it.rightMargin = 0
+                it.bottomMargin = if (landscape) dp(12) else dp(56)
+                controls.layoutParams = it
+            }
+            val middle = controls.getChildAt(0)
+            middle.layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50))
+            if (landscape) {
+                // Weighted left/right groups share all remaining width around the centered play button.
+                middle.setPadding(0, 0, 0, 0)
+            }
         }
     }
     private fun toggleControls() {
@@ -580,7 +613,11 @@ class NativeVideoPlayerActivity : Activity() {
         }
     }
     private fun toggleFit() { fitMode = (fitMode + 1) % 3; playerView.resizeMode = when (fitMode) { 1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM; 2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL; else -> AspectRatioFrameLayout.RESIZE_MODE_FIT }; fitButton.text = when (fitMode) { 1 -> "Zoom"; 2 -> "Fill"; else -> "Fit" }; showControls() }
-    private fun toggleOrientation() { requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE; showControls() }
+    private fun toggleOrientation() {
+        requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        root.post { if (::controls.isInitialized) setControlsLocked(locked) }
+        showControls()
+    }
     private fun showSpeedPicker() {
         val values = arrayOf(0.5f, 0.75f, 1f, 1.25f, 1.5f, 1.75f, 2f)
         val labels = values.map { if (it == 1f) "1× Normal" else "${it}×" }.toTypedArray()
