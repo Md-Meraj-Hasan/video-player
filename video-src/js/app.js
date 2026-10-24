@@ -103,13 +103,61 @@
     renderPlaylist();
   }
 
+  async function scanDeviceLibrary() {
+    const permission = VideoPermissionBridge;
+    const scanner = VideoScannerBridge;
+    if (!permission || !scanner) return;
+    try {
+      const permissionResult = await permission.requestIfNeeded();
+      if (!permissionResult?.granted) return;
+      const result = await scanner.scan({ type: state.mode });
+      const items = Array.isArray(result?.items) ? result.items : [];
+      const normalized = items.map(item => ({
+        ...item,
+        nativeMedia: true,
+        lastModified: 0,
+        webkitRelativePath: item.relativePath || "Device files"
+      }));
+      if (state.mode === "audio") {
+        state.allAudioFiles = normalized;
+        state.files = currentAudioList();
+      } else {
+        revokeUrls();
+        state.files = normalized;
+        state.index = 0;
+        state.videoSelectedFolder = "";
+      }
+      renderPlaylist();
+      if (normalized.length) {
+        $("empty-library").classList.add("hidden");
+      }
+    } catch (error) {
+      console.error("Media scan failed", error);
+    }
+  }
+
+  function currentAudioList() {
+    let list = state.allAudioFiles.slice();
+    const folder = $("folder-filter")?.value || "__all__";
+    if (folder !== "__all__") list = list.filter(f => getFolder(f) === folder);
+    if (state.favoritesOnly) list = list.filter(isFavorite);
+    return list;
+  }
+
+  function getFolder(file) {
+    if (file?.relativePath) return String(file.relativePath).replace(/\/$/, "") || "Device files";
+    const path = file.webkitRelativePath || "";
+    if (!path.includes("/")) return "Device files";
+    const pieces = path.split("/");
+    return pieces.length > 2 ? pieces.slice(0, -1).join("/") : pieces[0];
+  }
+
   function setVideoLock(locked) {
     state.videoLocked = Boolean(locked);
     const lockButton = $("video-overlay-lock");
     if (lockButton) {
       lockButton.textContent = state.videoLocked ? "🔓" : "🔒";
       lockButton.setAttribute("aria-label", state.videoLocked ? "Unlock controls" : "Lock controls");
-      lockButton.setAttribute("title", state.videoLocked ? "Unlock controls" : "Lock controls");
     }
     const overlayControls = $("video-overlay-controls");
     if (overlayControls) {
@@ -122,16 +170,44 @@
     }
   }
 
-  // Event listener setup for Lock Button
-  document.addEventListener("DOMContentLoaded", () => {
-    const lockBtn = $("video-overlay-lock");
-    if (lockBtn) {
-      lockBtn.addEventListener("click", (e) => {
-        e.stopPropagation();
-        setVideoLock(!state.videoLocked);
-      });
+  function renderPlaylist() {
+    const list = $("playlist");
+    let shown = state.mode === "audio" ? currentAudioList() : state.files;
+    if (state.mode === "video") {
+      const q = state.videoSearch.trim().toLocaleLowerCase();
+      if (q) shown = shown.filter(file => `${file.name || ""} ${getFolder(file)}`.toLocaleLowerCase().includes(q));
+      if (state.videoSelectedFolder) shown = shown.filter(file => getFolder(file) === state.videoSelectedFolder);
     }
-  });
+    $("track-count").textContent = String(shown.length);
+    list.replaceChildren();
+    if (!shown.length) {
+      const empty = document.createElement("div");
+      empty.className = "playlist-empty";
+      empty.textContent = "No videos found. Tap Rescan to check your device.";
+      list.appendChild(empty);
+      return;
+    }
+    shown.forEach((file, i) => {
+      const item = document.createElement("div");
+      item.className = `playlist-item ${state.mode === "video" ? "video-library-card" : ""}`;
+      item.innerHTML = `<div class="playlist-meta"><strong>${file.name}</strong><small>${formatBytes(file.size || 0)}</small></div>`;
+      item.addEventListener("click", () => {
+        state.index = i;
+        if (state.mode === "video") {
+          VideoScannerBridge.launchVideo({ uri: file.uri, name: file.name, size: file.size, queue: shown });
+        }
+      });
+      list.appendChild(item);
+    });
+  }
 
-  // Baaki saare functions yahan safely rahenge...
+  document.addEventListener("DOMContentLoaded", () => {
+    $("choose-video")?.addEventListener("click", () => { openMode("video"); scanDeviceLibrary(); });
+    $("rescan-library-top")?.addEventListener("click", () => scanDeviceLibrary());
+    $("bottom-rescan")?.addEventListener("click", () => scanDeviceLibrary());
+    $("video-overlay-lock")?.addEventListener("click", (e) => {
+      e.stopPropagation();
+      setVideoLock(!state.videoLocked);
+    });
+  });
 })();
