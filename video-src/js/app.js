@@ -470,3 +470,27 @@ function init() {
   $('video-overlay-speed')?.addEventListener('click', (e) => {
     e.stopPropagation();
     $('video-speed-menu')?.classList.toggle('hidden');
+  });
+
+    const menu = $('video-speed-menu');
+    menu?.querySelectorAll('[data-speed]').forEach((button) => {
+      button.addEventListener('click', (e) => {
+        e.stopPropagation();
+        const speed = Number(button.getAttribute('data-speed'));
+        if (!Number.isFinite(speed) || speed <= 0) return;
+        if (video) video.playbackRate = speed;
+        const label = $('video-overlay-speed-label');
+        if (label) label.textContent = `${speed}×`;
+        menu.classList.add('hidden');
+        resetControlsTimer();
+      });
+    });
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('.video-speed-wrap')) {
+        $('video-speed-menu')?.classList.add('hidden');
+      }
+    });
+}
+
+document.addEventListener('DOMContentLoaded', init);
