@@ -1,6 +1,6 @@
 /* ==========================================================================
    Meraj Video Player - CSS Stylesheet
-   ================ ========================================================== */
+   ========================================================================== */
 
 :root {
   --bg-primary: #09090f;
@@ -463,7 +463,7 @@ main {
   object-fit: contain;
 }
 
-/* --- Video Overlay Controls & Customizations for Landscape & Solid Colors --- */
+/* --- Video Overlay Controls & Solid Colors --- */
 .video-overlay-controls {
   position: absolute;
   inset: 0;
@@ -498,7 +498,7 @@ main {
   position: relative;
 }
 
-/* Solid Color & High Visibility for ALL Video Control Icons & Buttons */
+/* Solid Color & High Visibility for ALL Video Control Buttons */
 .video-overlay-controls button,
 .video-overlay-controls .video-overlay-actions button,
 #video-overlay-play,
@@ -512,8 +512,8 @@ main {
 #video-overlay-lock,
 #video-overlay-speed {
   color: #ffffff !important;
-  background-color: rgba(0, 0, 0, 0.65) !important;
-  border: 1px solid rgba(255, 255, 255, 0.35) !important;
+  background-color: rgba(0, 0, 0, 0.75) !important;
+  border: 1px solid rgba(255, 255, 255, 0.4) !important;
   text-shadow: 0 1px 2px rgba(0, 0, 0, 0.9);
   cursor: pointer;
   border-radius: var(--radius-sm);
@@ -527,7 +527,7 @@ main {
 
 .video-overlay-controls button:hover,
 .video-overlay-controls button:active {
-  background-color: rgba(40, 40, 40, 0.9) !important;
+  background-color: rgba(50, 50, 50, 0.95) !important;
   border-color: #ffffff !important;
 }
 
@@ -574,6 +574,31 @@ main {
   flex: 1;
   padding: 4px 6px;
   font-size: 11px;
+}
+
+/* --- LOCK MODE LOGIC: Jab screen locked ho toh sirf lock button dikhe, baaki sab hide ho jayein --- */
+.video-frame.locked .video-overlay-top > *:not(#video-overlay-lock),
+.video-frame.locked .video-overlay-bottom,
+.video-frame.locked .collapse-video-stage {
+  display: none !important;
+}
+
+.video-frame.locked .video-overlay-controls {
+  background: transparent !important;
+  pointer-events: none;
+}
+
+.video-frame.locked #video-overlay-lock {
+  pointer-events: auto !important;
+  position: absolute;
+  top: 16px;
+  right: 16px;
+  z-index: 20;
+  background-color: rgba(0, 0, 0, 0.85) !important;
+  border: 2px solid var(--accent-color) !important;
+  padding: 8px 14px;
+  border-radius: var(--radius-md);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.6);
 }
 
 /* --- Landscape Mode Adjustments (Width 100% & Solid Controls) --- */
