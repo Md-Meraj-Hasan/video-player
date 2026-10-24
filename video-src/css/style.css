@@ -1,6 +1,3 @@
-/* ========================================================
-   ROOT THEME & RESET
-   ======================================================== */
 :root {
   --bg-main: #09090f;
   --bg-card: rgba(22, 22, 36, 0.7);
@@ -9,7 +6,7 @@
   --accent-glow: #55f3ff;
   --text-main: #f3f4f6;
   --text-muted: #94a3b8;
-  --glass-bg: rgba(14, 14, 24, 0.85);
+  --glass-bg: rgba(14, 14, 24, 0.88);
   --safe-bottom: env(safe-area-inset-bottom, 0px);
 }
 
@@ -22,11 +19,11 @@
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   background-color: var(--bg-main);
   color: var(--text-main);
   overflow-x: hidden;
-  padding-bottom: calc(65px + var(--safe-bottom));
+  padding-bottom: calc(75px + var(--safe-bottom));
 }
 
 button {
@@ -40,14 +37,10 @@ button {
   display: none !important;
 }
 
-/* ========================================================
-   APP SHELL & TOP BAR
-   ======================================================== */
 .app-shell {
   max-width: 768px;
   margin: 0 auto;
   min-height: 100vh;
-  position: relative;
 }
 
 .library-topline {
@@ -62,7 +55,6 @@ button {
   letter-spacing: 0.1em;
   color: var(--accent);
   font-weight: 700;
-  margin-bottom: 2px;
 }
 
 .library-title-wrap h2 {
@@ -101,7 +93,6 @@ button {
   stroke-width: 2;
 }
 
-/* Search and Tabs */
 .video-library-toolbar {
   padding: 0 16px 12px;
   display: flex;
@@ -142,12 +133,11 @@ button {
   font-size: 0.82rem;
   font-weight: 600;
   cursor: pointer;
-  border: 1px solid transparent;
 }
 
 .library-tab.selected {
   background: rgba(22, 189, 246, 0.15);
-  border-color: rgba(22, 189, 246, 0.35);
+  border: 1px solid rgba(22, 189, 246, 0.35);
   color: var(--accent-glow);
 }
 
@@ -158,10 +148,7 @@ button {
   overflow-x: auto;
   scrollbar-width: none;
 }
-
-.video-folder-strip::-webkit-scrollbar {
-  display: none;
-}
+.video-folder-strip::-webkit-scrollbar { display: none; }
 
 .folder-chip {
   white-space: nowrap;
@@ -180,11 +167,10 @@ button {
 }
 
 /* ========================================================
-   FULL-WIDTH STYLISH VIDEO STAGE & CONTROLS
+   FULL-WIDTH STYLISH VIDEO PLAYER & CONTROLS
    ======================================================== */
 .media-stage {
   padding: 0 16px 16px;
-  transition: all 0.3s ease;
 }
 
 .video-frame {
@@ -205,7 +191,6 @@ button {
   display: block;
 }
 
-/* Glassmorphism Controls Overlay */
 .video-overlay-controls {
   position: absolute;
   inset: 0;
@@ -215,8 +200,8 @@ button {
   background: linear-gradient(
     180deg,
     rgba(9, 9, 15, 0.85) 0%,
-    rgba(9, 9, 15, 0.2) 35%,
-    rgba(9, 9, 15, 0.2) 65%,
+    rgba(9, 9, 15, 0.15) 35%,
+    rgba(9, 9, 15, 0.15) 65%,
     rgba(9, 9, 15, 0.95) 100%
   );
   padding: 12px 14px;
@@ -231,7 +216,7 @@ button {
   pointer-events: none;
 }
 
-/* TOP OVERLAY BAR */
+/* Top Bar */
 .video-overlay-top {
   display: flex;
   align-items: center;
@@ -263,10 +248,6 @@ button {
   flex-shrink: 0;
 }
 
-.video-top-btn:active {
-  transform: scale(0.92);
-}
-
 .video-title-display {
   color: #ffffff;
   font-size: 0.88rem;
@@ -276,10 +257,7 @@ button {
   text-overflow: ellipsis;
 }
 
-/* Speed Selector Menu */
-.video-speed-wrap {
-  position: relative;
-}
+.video-speed-wrap { position: relative; }
 
 .speed-pill-btn {
   background: rgba(255, 255, 255, 0.12);
@@ -326,7 +304,7 @@ button {
   font-weight: 700;
 }
 
-/* CENTER OVERLAY (TRANSPORT) */
+/* Center Controls */
 .video-overlay-center {
   display: flex;
   align-items: center;
@@ -341,12 +319,10 @@ button {
   justify-content: center;
   cursor: pointer;
   color: #ffffff;
-  transition: transform 0.15s ease, background-color 0.2s ease;
+  transition: transform 0.15s ease;
 }
 
-.center-btn:active {
-  transform: scale(0.9);
-}
+.center-btn:active { transform: scale(0.9); }
 
 .center-btn.sec-btn {
   width: 44px;
@@ -374,7 +350,7 @@ button {
   fill: currentColor;
 }
 
-/* BOTTOM OVERLAY (SEEKBAR & UTILITIES) */
+/* Bottom Controls */
 .video-overlay-bottom {
   display: flex;
   flex-direction: column;
@@ -422,7 +398,6 @@ button {
   align-items: center;
   justify-content: space-between;
   width: 100%;
-  padding-top: 2px;
 }
 
 .util-right-group {
@@ -442,24 +417,17 @@ button {
   background: rgba(255, 255, 255, 0.05);
 }
 
-.util-btn small {
-  font-size: 0.72rem;
-  font-weight: 500;
-}
+.util-btn small { font-size: 0.72rem; }
 
 .util-btn:active {
   color: var(--accent-glow);
   background: rgba(255, 255, 255, 0.15);
 }
 
-.util-icon {
-  font-size: 0.85rem;
-}
+.util-icon { font-size: 0.85rem; }
 
-/* Volume panel popup */
-.volume-container {
-  position: relative;
-}
+/* Volume Panel */
+.volume-container { position: relative; }
 
 .video-overlay-volume-panel {
   position: absolute;
@@ -480,9 +448,7 @@ button {
   width: 80px;
 }
 
-/* ========================================================
-   🔒 LOCK SYSTEM STYLING
-   ======================================================== */
+/* Floating Unlock */
 .floating-unlock {
   position: absolute;
   top: 16px;
@@ -501,7 +467,6 @@ button {
   z-index: 50;
   cursor: pointer;
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.7);
-  animation: unlockFadeIn 0.25s ease-out;
 }
 
 .lock-svg {
@@ -509,16 +474,11 @@ button {
   height: 16px;
 }
 
-@keyframes unlockFadeIn {
-  from { opacity: 0; transform: scale(0.85); }
-  to { opacity: 1; transform: scale(1); }
+.video-frame.is-locked .video-overlay-controls {
+  display: none !important;
 }
 
-/* Track Details Under Player */
-.track-details {
-  padding: 10px 4px 0;
-}
-
+.track-details { padding: 10px 4px 0; }
 .track-details h3 {
   font-size: 1rem;
   color: #fff;
@@ -527,35 +487,17 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
-
 .track-details p {
   font-size: 0.72rem;
   color: var(--accent);
   font-weight: 600;
-  margin-top: 2px;
 }
 
-/* ========================================================
-   PLAYLIST SECTION & BOTTOM NAV
-   ======================================================== */
-.playlist-section {
-  padding: 12px 16px;
-}
-
-.playlist-header {
-  margin-bottom: 12px;
-}
-
-.playlist-header h3 {
-  font-size: 1.1rem;
-  font-weight: 700;
-}
-
-.playlist {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-}
+/* Playlist */
+.playlist-section { padding: 12px 16px; }
+.playlist-header { margin-bottom: 12px; }
+.playlist-header h3 { font-size: 1.1rem; font-weight: 700; }
+.playlist { display: flex; flex-direction: column; gap: 8px; }
 
 .playlist-empty {
   padding: 24px;
@@ -589,7 +531,6 @@ button {
   align-items: center;
   justify-content: center;
   color: var(--accent);
-  font-size: 1.1rem;
   flex-shrink: 0;
   overflow: hidden;
 }
@@ -600,11 +541,7 @@ button {
   object-fit: cover;
 }
 
-.video-meta {
-  flex: 1;
-  overflow: hidden;
-}
-
+.video-meta { flex: 1; overflow: hidden; }
 .video-meta strong {
   display: block;
   font-size: 0.85rem;
@@ -612,12 +549,9 @@ button {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+.video-meta small { color: var(--text-muted); font-size: 0.75rem; }
 
-.video-meta small {
-  color: var(--text-muted);
-  font-size: 0.75rem;
-}
-
+/* Bottom Nav */
 .bottom-navigation {
   position: fixed;
   bottom: 0;
@@ -643,16 +577,13 @@ button {
   cursor: pointer;
 }
 
-.bottom-nav-item.active {
-  color: var(--accent);
-}
+.bottom-nav-item.active { color: var(--accent); }
+.bottom-nav-item span { font-size: 1.1rem; }
+.bottom-nav-item small { font-size: 0.7rem; }
 
-.bottom-nav-item span {
-  font-size: 1.1rem;
-}
-
-.bottom-nav-item small {
-  font-size: 0.7rem;
+.audio-return-item {
+  color: #55f3ff !important;
+  font-weight: 700;
 }
 
 .local-footnote {
