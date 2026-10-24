@@ -56,12 +56,17 @@ jobs:
             exit 1
           fi
 
+          if [ ! -f video-player.html ] || [ ! -d video-src ]; then
+            echo "ERROR: embedded video player page/assets are missing."
+            exit 1
+          fi
+
           if [ ! -f scripts/strip-internet-permission.cjs ]; then
             echo "ERROR: Internet permission script is missing."
             exit 1
           fi
 
-          if [ ! -f scripts/integrate-native-media.cjs ] || [ ! -f android-native/MediaPermissionPlugin.kt ] || [ ! -f android-native/MediaLibraryScannerPlugin.kt ]; then
+          if [ ! -f scripts/integrate-native-media.cjs ] || [ ! -f android-native/MediaPermissionPlugin.kt ] || [ ! -f android-native/MediaLibraryScannerPlugin.kt ] || [ ! -f android-native/MerajPlaybackService.kt ]; then
             echo "ERROR: Native media integration files are missing."
             exit 1
           fi
@@ -86,6 +91,9 @@ jobs:
       - name: Build web assets
         run: npm run build
 
+      - name: Verify built HTML and local assets
+        run: node scripts/verify-web-assets.cjs dist
+
       - name: Generate Android project
         run: npx cap add android
 
@@ -100,6 +108,9 @@ jobs:
 
       - name: Re-apply internet permission block
         run: node scripts/strip-internet-permission.cjs
+
+      - name: Verify Capacitor copied web assets
+        run: node scripts/verify-web-assets.cjs android/app/src/main/assets/public
 
       - name: Verify Android manifest
         shell: bash
@@ -119,7 +130,25 @@ jobs:
             exit 1
           fi
 
-          echo "Internet permission removal rule found."
+          if ! grep -q 'android.permission.READ_MEDIA_AUDIO' "$MANIFEST"; then
+            echo "ERROR: READ_MEDIA_AUDIO permission is missing."
+            cat "$MANIFEST"
+            exit 1
+          fi
+
+          if ! grep -q 'android.permission.READ_MEDIA_VIDEO' "$MANIFEST"; then
+            echo "ERROR: READ_MEDIA_VIDEO permission is missing."
+            cat "$MANIFEST"
+            exit 1
+          fi
+
+          if ! grep -q 'android.permission.READ_EXTERNAL_STORAGE' "$MANIFEST"; then
+            echo "ERROR: Legacy media read permission is missing."
+            cat "$MANIFEST"
+            exit 1
+          fi
+
+          echo "Internet permission block plus audio/video permissions verified."
 
       - name: Build debug APK
         working-directory: android
@@ -128,6 +157,31 @@ jobs:
           set -euo pipefail
           chmod +x gradlew
           ./gradlew --no-daemon assembleDebug
+
+      - name: Verify APK contains its referenced web assets
+        shell: bash
+        run: |
+          set -euo pipefail
+          APK="android/app/build/outputs/apk/debug/app-debug.apk"
+          python3 - "$APK" <<'PYVERIFY'
+          import posixpath, re, sys, zipfile
+          apk = sys.argv[1]
+          with zipfile.ZipFile(apk) as z:
+              names = set(z.namelist())
+              html_name = "assets/public/index.html"
+              if html_name not in names:
+                  raise SystemExit("APK is missing assets/public/index.html")
+              html = z.read(html_name).decode("utf-8", "replace")
+              refs = re.findall(r"""(?:src|href)=["']([^"']+)["']""", html)
+              refs = [r for r in refs if not r.startswith(("http:", "https:", "data:", "//", "/"))]
+              for ref in refs:
+                  target = posixpath.normpath("assets/public/" + ref.split("?", 1)[0].lstrip("./"))
+                  if target not in names:
+                      raise SystemExit(f"APK HTML references missing asset: {target}")
+              if not any(r.endswith(".js") for r in refs):
+                  raise SystemExit("APK HTML has no local JavaScript bundle reference")
+              print("APK web assets verified:", len(refs), "local references")
+          PYVERIFY
 
       - name: Upload APK
         uses: actions/upload-artifact@v4
