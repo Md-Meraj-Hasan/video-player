@@ -358,8 +358,8 @@ class NativeVideoPlayerActivity : Activity() {
                 ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
         rightGroup.addView(nextButton, LinearLayout.LayoutParams(dp(48), dp(52)))
-        val forward = makeText("15↷") { controller?.let { it.seekTo((it.currentPosition + 15_000).coerceAtMost(it.duration.takeIf { d -> d > 0 } ?: Long.MAX_VALUE)) } }
-        rightGroup.addView(forward, LinearLayout.LayoutParams(dp(48), dp(52)))
+        val forward = skipButton(false)
+        rightGroup.addView(forward, LinearLayout.LayoutParams(dp(48), dp(48)))
         rightGroup.addView(fitButton, LinearLayout.LayoutParams(dp(48), dp(52)))
         lockButton = makeText("🔓") {
             locked = !locked
