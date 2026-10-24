@@ -43,11 +43,11 @@ if (mainActivity) {
   const dir = path.join(javaRoot, ...packageName.split('.'));
   fs.mkdirSync(dir, { recursive: true });
   mainActivity = path.join(dir, 'MainActivity.kt');
-  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}\n`);
+  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}\n`);
 }
 
 const activityDir = path.dirname(mainActivity);
-for (const name of ['MediaPermissionPlugin.kt', 'MediaLibraryScannerPlugin.kt']) {
+for (const name of ['MediaPermissionPlugin.kt', 'MediaLibraryScannerPlugin.kt', 'MerajMediaPlayerPlugin.kt', 'MerajPlaybackService.kt', 'NativeVideoPlayerActivity.kt']) {
   const source = path.join(nativeRoot, name);
   if (!fs.existsSync(source)) throw new Error(`Required native plugin source missing: ${source}`);
   let code = fs.readFileSync(source, 'utf8');
@@ -62,9 +62,9 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
     const onCreate = /override\s+fun\s+onCreate\s*\(\s*savedInstanceState\s*:\s*Bundle\?\s*\)\s*\{/.exec(main);
     if (onCreate) {
       const insertAt = onCreate.index + onCreate[0].length;
-      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)' + main.slice(insertAt);
+      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)' + main.slice(insertAt);
     } else {
-      main = main.replace(/class\s+MainActivity\s*:\s*BridgeActivity\(\)\s*\{?\s*\}?\s*$/, `class MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}`);
+      main = main.replace(/class\s+MainActivity\s*:\s*BridgeActivity\(\)\s*\{?\s*\}?\s*$/, `class MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}`);
     }
   } else {
     // Capacitor's default Java MainActivity is often an empty class with no
@@ -72,7 +72,7 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
     const onCreate = /(?:@Override\s*)?protected\s+void\s+onCreate\s*\(\s*Bundle\s+savedInstanceState\s*\)\s*\{/.exec(main);
     if (onCreate) {
       const insertAt = onCreate.index + onCreate[0].length;
-      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);' + main.slice(insertAt);
+      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);' + main.slice(insertAt);
     } else {
       if (!/import\s+android\.os\.Bundle\s*;/.test(main)) {
         const packageMatch = /package\s+[A-Za-z0-9_.]+\s*;/.exec(main);
@@ -86,41 +86,16 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
       const classOpen = /class\s+MainActivity\s+extends\s+BridgeActivity\s*\{/.exec(main);
       if (!classOpen) throw new Error(`Could not find MainActivity extends BridgeActivity class in ${mainActivity}`);
       const insertAt = classOpen.index + classOpen[0].length;
-      main = main.slice(0, insertAt) + `\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n` + main.slice(insertAt);
+      main = main.slice(0, insertAt) + `\n    @Override\n    protected void onCreate(Bundle savedInstanceState) {\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);\n        super.onCreate(savedInstanceState);\n    }\n` + main.slice(insertAt);
     }
   }
 }
 if (!main.includes('MediaLibraryScannerPlugin::class.java') && !main.includes('MediaLibraryScannerPlugin.class')) {
-  throw new Error(`Could not register native media plugins in ${mainActivity}`);
+  throw new Error(`Could not register native media scanner in ${mainActivity}`);
 }
-// Route Android's hardware/system Back button directly into the single web handler.
-// This avoids relying only on Capacitor's backButton event, which may not fire if a
-// plugin or WebView consumes the dispatcher event first. Inject idempotently.
-if (mainActivity.endsWith('.kt')) {
-  if (!main.includes('handleMerajAndroidBack')) {
-    const method = `\n    @Suppress(\"DEPRECATION\")\n    override fun onBackPressed() {\n        val webView = bridge?.webView\n        if (webView != null) {\n            webView.post { webView.evaluateJavascript(\"window.handleMerajAndroidBack && window.handleMerajAndroidBack();\", null) }\n        } else {\n            super.onBackPressed()\n        }\n    }\n`;
-    const lastBrace = main.lastIndexOf('}');
-    if (lastBrace < 0) throw new Error(`Could not inject native Back handler into ${mainActivity}`);
-    main = main.slice(0, lastBrace) + method + main.slice(lastBrace);
-  }
-} else if (mainActivity.endsWith('.java')) {
-  if (!main.includes('handleMerajAndroidBack')) {
-    if (!/import\s+android\.webkit\.WebView\s*;/.test(main)) {
-      const packageMatch = /package\s+[A-Za-z0-9_.]+\s*;/.exec(main);
-      if (packageMatch) main = main.slice(0, packageMatch.index + packageMatch[0].length) + '\n\nimport android.webkit.WebView;' + main.slice(packageMatch.index + packageMatch[0].length);
-    }
-    const lastBrace = main.lastIndexOf('}');
-    if (lastBrace < 0) throw new Error(`Could not inject native Back handler into ${mainActivity}`);
-    const method = `\n    @Override\n    @SuppressWarnings(\"deprecation\")\n    public void onBackPressed() {\n        WebView webView = getBridge() != null ? getBridge().getWebView() : null;\n        if (webView != null) {\n            webView.post(() -> webView.evaluateJavascript(\"window.handleMerajAndroidBack && window.handleMerajAndroidBack();\", null));\n        } else {\n            super.onBackPressed();\n        }\n    }\n`;
-    main = main.slice(0, lastBrace) + method + main.slice(lastBrace);
-  }
+if (!main.includes('MerajMediaPlayerPlugin::class.java') && !main.includes('MerajMediaPlayerPlugin.class')) {
+  main = main.replace(/registerPlugin\(MediaLibraryScannerPlugin(::class\.java|\.class)\);?/, match => match + (match.includes('::class') ? '\n        registerPlugin(MerajMediaPlayerPlugin::class.java)' : '\n        registerPlugin(MerajMediaPlayerPlugin.class);'));
 }
-
-// WebView must allow playback after the async native MediaStore preparation step.
-if (mainActivity.endsWith('.kt') && !main.includes('mediaPlaybackRequiresUserGesture = false')) {
-  main = main.replace(/super\.onCreate\(savedInstanceState\)/, 'super.onCreate(savedInstanceState)\n        bridge.webView.settings.mediaPlaybackRequiresUserGesture = false');
-}
-
 fs.writeFileSync(mainActivity, main);
 
 let xml = fs.readFileSync(manifest, 'utf8');
@@ -159,4 +134,38 @@ function ensureKotlinGradlePlugin() {
 
 ensureKotlinGradlePlugin();
 
-console.log(`Native media plugins copied and registered in ${mainActivity}; media permissions declared.`);
+const appGradle = path.join(appRoot, 'build.gradle');
+let gradleText = fs.readFileSync(appGradle, 'utf8');
+if (!gradleText.includes('androidx.media3:media3-exoplayer')) {
+  if (!/dependencies\s*\{/.test(gradleText)) throw new Error('Could not find dependencies block in android/app/build.gradle');
+  gradleText = gradleText.replace(/dependencies\s*\{/, match => `${match}\n    implementation 'androidx.media3:media3-exoplayer:1.5.1'\n    implementation 'androidx.media3:media3-session:1.5.1'`);
+  fs.writeFileSync(appGradle, gradleText);
+} else if (!gradleText.includes('androidx.media3:media3-session')) {
+  gradleText = gradleText.replace(/dependencies\s*\{/, match => `${match}\n    implementation 'androidx.media3:media3-session:1.5.1'`);
+  fs.writeFileSync(appGradle, gradleText);
+}
+
+
+if (!gradleText.includes('androidx.media3:media3-ui')) {
+  gradleText = gradleText.replace(/dependencies\s*\{/, match => `${match}\n    implementation 'androidx.media3:media3-ui:1.5.1'`);
+  fs.writeFileSync(appGradle, gradleText);
+}
+
+// Register the MediaSessionService and foreground playback permissions.
+xml = fs.readFileSync(manifest, 'utf8');
+const servicePermissions = [
+  '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+  '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />'
+];
+for (const permission of servicePermissions) {
+  if (!xml.includes(permission)) xml = xml.replace(/<manifest\b[^>]*>/, match => `${match}\n    ${permission}`);
+}
+if (!xml.includes('NativeVideoPlayerActivity')) {
+  xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <activity android:name=".NativeVideoPlayerActivity" android:exported="false" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" />`);
+}
+if (!xml.includes('MerajPlaybackService')) {
+  xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <service android:name=".MerajPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">\n            <intent-filter>\n                <action android:name="androidx.media3.session.MediaSessionService" />\n            </intent-filter>\n        </service>`);
+}
+fs.writeFileSync(manifest, xml);
+
+console.log(`Native Media3 audio service/plugin and direct-URI video activity copied and registered in ${mainActivity}; media permissions and ExoPlayer/session/UI dependencies configured.`);

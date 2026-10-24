@@ -1,6 +1,6 @@
 {
-  "appId": "com.meraj.videoplayer",
-  "appName": "Meraj Video",
+  "appId": "com.meraj.mediaplayer",
+  "appName": "Nice Multimedia",
   "webDir": "dist",
   "android": {
     "allowMixedContent": false

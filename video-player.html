@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#09090f">
+  <meta name="description" content="Offline music and video player">
+  <title>Meraj Video</title>
+  <link rel="stylesheet" href="./video-src/css/style.css">
+</head>
+<body>
+  <div class="app-shell">
+    <header class="topbar hidden">
+      <div class="round-brand" role="img" aria-label="Professional Local Media Player logo">
+        <svg class="brand-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <defs>
+            <linearGradient id="brand-film-blue" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#55f3ff"/><stop offset=".55" stop-color="#16bdf6"/><stop offset="1" stop-color="#3878ff"/></linearGradient>
+            <linearGradient id="brand-play-gradient" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#fff"/><stop offset="1" stop-color="#c9baff"/></linearGradient>
+            <filter id="brand-neon" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="1.6" result="blur"/><feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+            <path id="brand-title-top" d="M 12,60 A 48,48 0 0,1 108,60"/>
+            <path id="brand-title-bottom" d="M 12,61 A 48,48 0 0,0 108,61"/>
+          </defs>
+          <circle class="brand-ring-outer" cx="60" cy="60" r="56"/>
+          <circle class="brand-ring-inner" cx="60" cy="60" r="39.5"/>
+          <text class="brand-circle-title"><textPath href="#brand-title-top" startOffset="50%" text-anchor="middle">PROFESSIONAL LOCAL</textPath></text>
+          <text class="brand-circle-title brand-title-bottom"><textPath href="#brand-title-bottom" startOffset="50%" text-anchor="middle">MEDIA PLAYER</textPath></text>
+          <g filter="url(#brand-neon)">
+            <g transform="translate(0 -9)">
+            <rect class="brand-film-frame" x="34" y="45" width="43" height="30" rx="5"/>
+            <g class="brand-film-perf">
+              <rect x="37" y="47" width="4" height="4" rx=".5"/><rect x="47" y="47" width="4" height="4" rx=".5"/><rect x="57" y="47" width="4" height="4" rx=".5"/><rect x="67" y="47" width="4" height="4" rx=".5"/>
+              <rect x="37" y="69" width="4" height="4" rx=".5"/><rect x="47" y="69" width="4" height="4" rx=".5"/><rect x="57" y="69" width="4" height="4" rx=".5"/><rect x="67" y="69" width="4" height="4" rx=".5"/>
+            </g>
+            <path class="brand-icon-play" d="M49 52 L62 60 L49 68 Z"/>
+            </g>
+            <text class="brand-icon-note" x="60" y="84" text-anchor="middle" font-family="system-ui, sans-serif" font-size="17" font-weight="800">♫</text>
+          </g>
+        </svg>
+      </div>
+      <span class="offline-pill"><i></i> OFFLINE</span>
+    </header>
+
+    <main>
+      <section id="welcome-screen" class="screen welcome-screen hidden">
+        <div class="hero-orb orb-one"></div>
+        <div class="hero-orb orb-two"></div>
+        <div class="welcome-content">
+          <div class="hero-icon" aria-hidden="true">
+            <svg viewBox="0 0 64 64" fill="none"><path d="M36 8v35.5a10.5 10.5 0 1 1-6-9.48V17.5L52 12v25.5a10.5 10.5 0 1 1-6-9.48V5L36 8Z" stroke="currentColor" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          </div>
+          <p class="eyebrow hero-eyebrow">YOUR MEDIA. YOUR DEVICE.</p>
+          <h1>Welcome to<br><span>Meraj Video</span></h1>
+          <p class="hero-description">All your local videos in one beautiful player. Private, local, and offline.</p>
+          <div class="choice-stack">
+<button class="choice-card" id="choose-video" type="button">
+              <span class="choice-icon video-icon" aria-hidden="true">▶</span>
+              <span class="choice-copy"><strong>Open Video Library</strong><small>Browse and play videos stored on your device</small></span>
+              <span class="choice-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+          <div class="privacy-note"><span class="shield" aria-hidden="true">✓</span><span><strong>No internet. No ads. No tracking.</strong><br>Your media stays on your device.</span></div>
+        </div>
+      </section>
+
+      <section id="player-screen" class="screen player-screen">
+        <div class="library-topline"><div class="library-title-wrap"><p class="eyebrow" id="player-kicker">YOUR LIBRARY</p><h2 id="player-title">Video Library</h2><p id="player-subtitle">Your videos, stored on this device.</p></div><div class="library-head-actions"><button id="share-video-app" class="icon-action share-icon-action" type="button" aria-label="Share Meraj Media" title="Share Meraj Media"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2"></path></svg></button><button id="rescan-library-top" class="icon-action" type="button" aria-label="Rescan videos" title="Rescan">⟳</button></div></div>
+        <div class="video-library-toolbar" id="video-library-toolbar"><label class="library-search"><span aria-hidden="true">⌕</span><input id="video-search" type="search" placeholder="Search videos…" autocomplete="off" aria-label="Search videos"></label><div class="library-tabs" role="tablist" aria-label="Video library view"><button id="video-tab-all" class="library-tab selected" type="button" role="tab" aria-selected="true">▣ Videos</button><button id="video-tab-folders" class="library-tab" type="button" role="tab" aria-selected="false">▤ Folders</button></div></div>
+        <div id="video-folder-strip" class="video-folder-strip" aria-label="Video folders" role="tablist"></div>
+
+        <div id="audio-library-tools" class="audio-library-tools hidden" aria-hidden="true">
+          <div class="library-actions">
+            <span class="small-action library-folder-label">▣ Device folders</span>
+            <button id="show-all-songs" class="small-action selected" type="button">All songs</button>
+            <button id="show-favorites" class="small-action" type="button">♡ Favorites</button>
+          </div>
+          <div class="folder-row">
+            <label for="folder-filter">Audio folder</label>
+            <select id="folder-filter" aria-label="Choose current folder">
+              <option value="__all__">All songs</option>
+            </select>
+          </div>
+          <div class="folder-row">
+            <label for="shuffle-scope">Shuffle scope</label>
+            <select id="shuffle-scope" aria-label="Shuffle current folder or all songs">
+              <option value="folder">Current folder</option>
+              <option value="all">All songs</option>
+            </select>
+          </div>
+        </div>
+
+        <div id="empty-library" class="empty-library">
+          <div class="empty-icon" id="empty-icon" aria-hidden="true">♫</div>
+          <strong id="empty-title">Your video library is ready</strong>
+          <p id="empty-description">Scan your device to find videos, then tap a video to play.</p>
+        </div>
+
+        <div id="media-stage" class="media-stage hidden">
+          <div id="artwork" class="artwork hidden" aria-hidden="true"><span>▶</span></div>
+          <div id="video-frame" class="video-frame hidden">
+            <button id="collapse-video-stage" class="collapse-video-stage" type="button" aria-label="Hide video and show full video list" title="Hide video to browse list"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>
+            <div id="video-overlay-controls" class="video-overlay-controls hidden"><div class="video-overlay-top"><span id="video-overlay-title">Now playing</span><div class="video-speed-wrap"><button id="video-overlay-speed" type="button" aria-label="Playback speed 1x" title="Playback speed"><svg class="speedometer-icon" viewBox="0 0 24 24" aria-hidden="true" focusable="false"><path d="M4.8 18.2a9 9 0 1 1 14.4 0"/><path d="M12 12l4.3-4.1"/><circle cx="12" cy="12" r="1.25"/></svg><small id="video-overlay-speed-label">1×</small></button><div id="video-speed-menu" class="video-speed-menu hidden" role="listbox" aria-label="Select video playback speed"><button type="button" data-speed="0.5">0.5×</button><button type="button" data-speed="0.75">0.75×</button><button type="button" data-speed="1">1× Normal</button><button type="button" data-speed="1.25">1.25×</button><button type="button" data-speed="1.5">1.5×</button><button type="button" data-speed="1.75">1.75×</button><button type="button" data-speed="2">2×</button></div></div></div><div class="video-overlay-bottom"><div class="video-overlay-time"><span id="video-current-time">0:00</span><span id="video-total-time">0:00</span></div><input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video"><div class="video-overlay-actions video-transport-row"><button id="video-overlay-previous" type="button" aria-label="Previous video" title="Previous video">⏮</button><button id="video-overlay-rewind" type="button" aria-label="Seek back 15 seconds" title="Back 15 seconds">↶</button><button id="video-overlay-play" class="overlay-play" type="button" aria-label="Play video" title="Play/Pause">▶</button><button id="video-overlay-forward" type="button" aria-label="Seek forward 15 seconds" title="Forward 15 seconds">↷</button><button id="video-overlay-next" type="button" aria-label="Next video" title="Next video">⏭</button></div><div class="video-overlay-actions video-utility-row"><button id="video-overlay-display" type="button" aria-label="Display mode: Fit" title="Cycle fit, zoom, fullscreen">⛶ <small>Display</small></button><button id="video-overlay-volume" type="button" aria-label="Volume" title="Volume">🔊 <small>Volume</small></button><button id="video-overlay-landscape" type="button" aria-label="Rotate to landscape" title="Landscape">⤢ <small>Landscape</small></button><button id="video-overlay-lock" type="button" aria-label="Lock controls" title="Lock controls">🔒 <small>Lock</small></button></div><div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden"><input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume"></div></div></div>
+            <video id="video-element" class="video-element hidden" playsinline preload="metadata"></video>
+          </div>
+          <div class="track-details">
+            <h3 id="current-name">Nothing selected</h3>
+            <p id="current-type">LOCAL VIDEO</p>
+          </div>
+          <audio id="audio-element" preload="metadata"></audio>
+          <div id="audio-controls" class="custom-controls hidden" aria-hidden="true">
+            <div class="time-row"><span id="current-time">0:00</span><span id="duration">0:00</span></div>
+            <input id="seekbar" class="range-control" type="range" min="0" max="1000" value="0" aria-label="Seek">
+            <div class="transport">
+              <button id="shuffle-mode" class="transport-button secondary mode-button" type="button" aria-label="Shuffle off" title="Shuffle off">⤨</button>
+              <button id="previous-track" class="transport-button secondary" type="button" aria-label="Previous track">|◀</button>
+              <button id="play-pause" class="transport-button play-button" type="button" aria-label="Play">▶</button>
+              <button id="next-track" class="transport-button secondary" type="button" aria-label="Next track">▶|</button>
+              <button id="repeat-mode" class="transport-button secondary mode-button" type="button" aria-label="Repeat off" title="Repeat off">↻</button>
+            </div>
+            <div class="audio-extra-controls">
+              <button id="favorite-current" class="small-action favorite-action" type="button">♡ Add to favorites</button>
+              <label class="speed-control" for="playback-speed">Speed
+                <select id="playback-speed" aria-label="Playback speed">
+                  <option value="1">1.0×</option><option value="1.1">1.1×</option><option value="1.2">1.2×</option>
+                  <option value="1.3">1.3×</option><option value="1.4">1.4×</option><option value="1.5">1.5×</option>
+                  <option value="1.6">1.6×</option><option value="1.7">1.7×</option><option value="1.8">1.8×</option>
+                  <option value="1.9">1.9×</option><option value="2">2.0×</option>
+                </select>
+              </label>
+            </div>
+          </div>
+          <div id="video-status" class="video-status hidden">Use the video controls to play, pause, seek, and go fullscreen.</div>
+        </div>
+
+        <section class="playlist-section">
+          <div class="playlist-header"><div><p class="eyebrow">YOUR DEVICE</p><h3>Videos <span id="track-count">0</span></h3></div></div>
+          <div id="playlist" class="playlist"><div class="playlist-empty">Your scanned videos will appear here.</div></div>
+        </section>
+        <nav class="bottom-navigation" aria-label="Main navigation">
+<button class="bottom-nav-item audio-return-item" type="button" id="bottom-audio-return" aria-label="Return to audio player"><span>♫</span><small>Audio</small></button><button class="bottom-nav-item active" type="button" id="bottom-library"><span>▦</span><small>Library</small></button><button class="bottom-nav-item" type="button" id="bottom-folders"><span>▤</span><small>Folders</small></button><button class="bottom-nav-item" type="button" id="bottom-rescan"><span>⟳</span><small>Rescan</small></button></nav><p class="local-footnote">Files are opened from your device. This app does not upload or share them.</p>
+      </section>
+    </main>
+    <footer class="app-footer"><span>MER AJ MEDIA PLAYER</span><span>BUILT FOR OFFLINE</span></footer>
+  </div>
+  <script type="module" src="./video-src/js/app.js"></script>
+</body>
+</html>

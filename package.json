@@ -5,17 +5,16 @@
   "description": "Offline-first local audio and video player for Android",
   "scripts": {
     "start": "vite --host 0.0.0.0",
-    "build": "vite build",
+    "build": "vite build && node scripts/verify-web-assets.cjs",
     "android:build": "npm run build && npx cap add android && node scripts/strip-internet-permission.cjs && npx cap sync android && node scripts/strip-internet-permission.cjs && cd android && gradlew.bat assembleDebug",
     "android:sync": "npx cap sync android"
   },
   "dependencies": {
     "@capacitor/android": "^7.0.0",
-    "@capacitor/app": "^7.0.0",
     "@capacitor/core": "^7.0.0",
-    "@capacitor/filesystem": "^7.0.0",
     "@capacitor-community/media": "^8.0.1",
-    "@capacitor/screen-orientation": "^7.0.0"
+    "@capacitor/screen-orientation": "^7.0.0",
+    "@capacitor/app": "^7.0.0"
   },
   "devDependencies": {
     "@capacitor/cli": "^7.0.0",
