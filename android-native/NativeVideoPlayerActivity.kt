@@ -51,9 +51,9 @@ class NativeVideoPlayerActivity : Activity() {
     private lateinit var positionLabel: TextView
     private lateinit var durationLabel: TextView
     private lateinit var speedButton: TextView
-    private lateinit var fitButton: TextView
-    private lateinit var rotateButton: TextView
-    private lateinit var lockButton: TextView
+    private lateinit var fitButton: View
+    private lateinit var rotateButton: View
+    private lateinit var lockButton: View
     private lateinit var shareButton: TextView
     private lateinit var volumeButton: TextView
     private lateinit var titleLabel: TextView
@@ -127,7 +127,7 @@ class NativeVideoPlayerActivity : Activity() {
         root.addView(playerView, FrameLayout.LayoutParams(-1, -1))
         gestureIndicator = View(this).apply {
             background = GradientDrawable().apply {
-                setColor(Color.rgb(74, 224, 205))
+                setColor(accentColor)
                 cornerRadius = dp(3).toFloat()
             }
             visibility = View.GONE
@@ -355,7 +355,8 @@ class NativeVideoPlayerActivity : Activity() {
         val middle = LinearLayout(this).apply {
             minimumHeight = dp(50)
             orientation = LinearLayout.HORIZONTAL
-            gravity = Gravity.CENTER_VERTICAL
+            // Keep the complete playback-tool cluster centered in the available player width.
+            gravity = Gravity.CENTER
             weightSum = 2f
             // Always occupy the full available player width, including landscape.
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50))
@@ -393,8 +394,14 @@ class NativeVideoPlayerActivity : Activity() {
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl))
-        fitButton = makeText("⛶") { toggleFit() }.apply { textSize = 29f; contentDescription = "Cycle Fit, Zoom and Fill modes" }
-        rotateButton = makeText("↻") { toggleOrientation() }.apply { contentDescription = "Rotate screen" }
+        fitButton = ThemeIconView(this, "fit").apply {
+            contentDescription = "Cycle Fit, Zoom and Fill modes"
+            setOnClickListener { toggleFit() }
+        }
+        rotateButton = ThemeIconView(this, "rotate").apply {
+            contentDescription = "Rotate screen"
+            setOnClickListener { toggleOrientation(); showControls() }
+        }
         val previousButton = makeIcon(android.R.drawable.ic_media_previous) {
             controller?.let { p ->
                 if (p.hasPreviousMediaItem()) p.seekToPreviousMediaItem()
@@ -414,20 +421,24 @@ class NativeVideoPlayerActivity : Activity() {
         val forward = skipButton(false)
         rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl))
         rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl))
-        lockButton = makeText("🔓") {
-            locked = !locked
-            lockButton.text = if (locked) "🔒" else "🔓"
-            lockButton.contentDescription = if (locked) "Unlock video controls" else "Lock video controls"
-            setControlsLocked(locked)
-            if (locked) {
-                handler.removeCallbacks(hideControls)
-                handler.removeCallbacks(hideLockedIndicator)
-                handler.postDelayed(hideLockedIndicator, 5000)
-                Toast.makeText(this, "Controls locked — tap screen to show unlock", Toast.LENGTH_SHORT).show()
-            } else {
-                handler.removeCallbacks(hideLockedIndicator)
-                showControls()
-                Toast.makeText(this, "Controls unlocked", Toast.LENGTH_SHORT).show()
+        lockButton = ThemeIconView(this, "lock").apply {
+            contentDescription = "Lock video controls"
+            setOnClickListener {
+                locked = !locked
+                (lockButton as? ThemeIconView)?.isLocked = locked
+                lockButton.contentDescription = if (locked) "Unlock video controls" else "Lock video controls"
+                lockButton.invalidate()
+                setControlsLocked(locked)
+                if (locked) {
+                    handler.removeCallbacks(hideControls)
+                    handler.removeCallbacks(hideLockedIndicator)
+                    handler.postDelayed(hideLockedIndicator, 5000)
+                    Toast.makeText(this@NativeVideoPlayerActivity, "Controls locked — tap screen to show unlock", Toast.LENGTH_SHORT).show()
+                } else {
+                    handler.removeCallbacks(hideLockedIndicator)
+                    showControls()
+                    Toast.makeText(this@NativeVideoPlayerActivity, "Controls unlocked", Toast.LENGTH_SHORT).show()
+                }
             }
         }
         rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl))
@@ -485,6 +496,89 @@ class NativeVideoPlayerActivity : Activity() {
         controls.isFocusable = false
         root.addView(controls, controlsParams)
         controls.setOnClickListener { showControls() }
+    }
+
+    private inner class ThemeIconView(
+        context: android.content.Context,
+        private val kind: String
+    ) : View(context) {
+        var fitMode: Int = 0
+            set(value) { field = value; invalidate() }
+        var isLocked: Boolean = false
+            set(value) { field = value; invalidate() }
+
+        private val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = dp(2).toFloat()
+            strokeCap = Paint.Cap.ROUND
+            strokeJoin = Paint.Join.ROUND
+        }
+
+        override fun onDraw(canvas: Canvas) {
+            super.onDraw(canvas)
+            paint.color = accentColor
+            val side = minOf(width, height).toFloat()
+            val cx = width / 2f
+            val cy = height / 2f
+            val unit = side * 0.27f
+            when (kind) {
+                "fit" -> {
+                    when (fitMode) {
+                        0 -> { // four clear outward corner brackets = Fit
+                            val p = Path()
+                            val l = cx - unit; val r = cx + unit
+                            val t = cy - unit; val b = cy + unit
+                            val k = unit * 0.48f
+                            p.moveTo(l, t + k); p.lineTo(l, t); p.lineTo(l + k, t)
+                            p.moveTo(r - k, t); p.lineTo(r, t); p.lineTo(r, t + k)
+                            p.moveTo(l, b - k); p.lineTo(l, b); p.lineTo(l + k, b)
+                            p.moveTo(r - k, b); p.lineTo(r, b); p.lineTo(r, b - k)
+                            canvas.drawPath(p, paint)
+                        }
+                        1 -> { // Zoom: magnifier with a plus, clearer than a text glyph
+                            canvas.drawCircle(cx - unit * .12f, cy - unit * .12f, unit * .62f, paint)
+                            canvas.drawLine(cx + unit * .28f, cy + unit * .28f, cx + unit * .82f, cy + unit * .82f, paint)
+                            canvas.drawLine(cx - unit * .42f, cy - unit * .12f, cx + unit * .18f, cy - unit * .12f, paint)
+                            canvas.drawLine(cx - unit * .12f, cy - unit * .42f, cx - unit * .12f, cy + unit * .18f, paint)
+                        }
+                        else -> { // Fill: a clean frame with solid center
+                            paint.style = Paint.Style.STROKE
+                            canvas.drawRoundRect(RectF(cx-unit, cy-unit, cx+unit, cy+unit), dp(2).toFloat(), dp(2).toFloat(), paint)
+                            paint.style = Paint.Style.FILL
+                            canvas.drawRect(cx-unit*.48f, cy-unit*.48f, cx+unit*.48f, cy+unit*.48f, paint)
+                            paint.style = Paint.Style.STROKE
+                        }
+                    }
+                }
+                "rotate" -> {
+                    val r = unit * .78f
+                    val oval = RectF(cx-r, cy-r, cx+r, cy+r)
+                    canvas.drawArc(oval, 35f, 285f, false, paint)
+                    val ex = cx + r * kotlin.math.cos(Math.toRadians(320.0)).toFloat()
+                    val ey = cy + r * kotlin.math.sin(Math.toRadians(320.0)).toFloat()
+                    val arrow = Path().apply {
+                        moveTo(ex, ey)
+                        lineTo(ex - dp(6), ey - dp(1))
+                        moveTo(ex, ey)
+                        lineTo(ex - dp(1), ey + dp(6))
+                    }
+                    canvas.drawPath(arrow, paint)
+                }
+                "lock" -> {
+                    val bw = unit * 1.15f
+                    val bh = unit * .82f
+                    val left = cx - bw/2
+                    val right = cx + bw/2
+                    val top = cy - bh/4
+                    val bottom = cy + bh
+                    val shackle = RectF(cx - bw*.32f, cy - unit*.95f, cx + bw*.32f, top + unit*.2f)
+                    canvas.drawArc(shackle, 180f, 180f, false, paint)
+                    canvas.drawRoundRect(RectF(left, top, right, bottom), dp(2).toFloat(), dp(2).toFloat(), paint)
+                    canvas.drawCircle(cx, top + bh*.42f, dp(1.8f).toFloat(), paint)
+                    canvas.drawLine(cx, top + bh*.42f, cx, top + bh*.66f, paint)
+                }
+            }
+        }
     }
 
     private inner class SkipButtonView(
@@ -572,7 +666,7 @@ class NativeVideoPlayerActivity : Activity() {
         setPadding(12, 12, 12, 12); setOnClickListener { action(); showControls() }
     }
     private fun iconButton(icon: Int, action: () -> Unit): ImageButton = ImageButton(this).apply {
-        setImageResource(icon); setColorFilter(Color.WHITE); background = solidButton(Color.rgb(94, 47, 153))
+        setImageResource(icon); setColorFilter(accentColor); background = null
         layoutParams = LinearLayout.LayoutParams(0, 58, 1f); setPadding(10, 10, 10, 10)
         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         setOnClickListener { action(); showControls() }
@@ -608,6 +702,7 @@ class NativeVideoPlayerActivity : Activity() {
         topBar.visibility = if (value) View.GONE else View.VISIBLE
         if (value) {
             controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER
+            (controls.getChildAt(0) as? LinearLayout)?.gravity = Gravity.CENTER
             controls.setPadding(0, 0, 0, 0)
             controls.background = null
             (controls.layoutParams as? FrameLayout.LayoutParams)?.let {
@@ -618,7 +713,8 @@ class NativeVideoPlayerActivity : Activity() {
                 controls.layoutParams = it
             }
         } else {
-            controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER_VERTICAL or Gravity.LEFT
+            controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER
+            (controls.getChildAt(0) as? LinearLayout)?.gravity = Gravity.CENTER
             val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             controls.setPadding(0, dp(2), 0, dp(4))
             (controls.layoutParams as? FrameLayout.LayoutParams)?.let {
@@ -716,8 +812,9 @@ class NativeVideoPlayerActivity : Activity() {
             2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
             else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
         }
-        fitButton.text = when (fitMode) { 1 -> "⌕"; 2 -> "▣"; else -> "⛶" }
+        (fitButton as? ThemeIconView)?.fitMode = fitMode
         fitButton.contentDescription = when (fitMode) { 1 -> "Zoom mode"; 2 -> "Fill mode"; else -> "Fit mode" }
+        fitButton.invalidate()
         showControls()
     }
     private fun toggleOrientation() {
