@@ -4,305 +4,215 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
   <meta name="theme-color" content="#09090f">
+  <meta name="description" content="Offline music and video player">
   <title>Meraj Video</title>
   <link rel="stylesheet" href="./video-src/css/style.css">
 </head>
 <body>
   <div class="app-shell">
-    
+    <header class="topbar hidden">
+      <div class="round-brand" role="img" aria-label="Professional Local Media Player logo">
+        <svg class="brand-svg" viewBox="0 0 120 120" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+          <circle class="brand-ring-outer" cx="60" cy="60" r="56"/>
+        </svg>
+      </div>
+      <span class="offline-pill"><i></i> OFFLINE</span>
+    </header>
+
     <main>
+      <section id="welcome-screen" class="screen welcome-screen hidden">
+        <div class="welcome-content">
+          <h1>Welcome to<br><span>Meraj Video</span></h1>
+          <p class="hero-description">All your local videos in one beautiful player. Private, local, and offline.</p>
+          <div class="choice-stack">
+            <button class="choice-card" id="choose-video" type="button">
+              <span class="choice-icon video-icon" aria-hidden="true">▶</span>
+              <span class="choice-copy"><strong>Open Video Library</strong><small>Browse and play videos</small></span>
+              <span class="choice-arrow" aria-hidden="true">↗</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section id="player-screen" class="screen player-screen">
         <div class="library-topline">
           <div class="library-title-wrap">
-            <p class="eyebrow">YOUR LIBRARY</p>
+            <p class="eyebrow" id="player-kicker">YOUR LIBRARY</p>
             <h2 id="player-title">Video Library</h2>
-            <p id="player-subtitle">Local videos on this device.</p>
+            <p id="player-subtitle">Your videos, stored on this device.</p>
           </div>
           <div class="library-head-actions">
-            <button id="rescan-library-top" class="icon-action" type="button" title="Rescan">⟳</button>
+            <button id="share-video-app" class="icon-action share-icon-action" type="button" aria-label="Share Video" title="Share Video">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><path d="M8.7 10.6 15.3 6.4M8.7 13.4l6.6 4.2"></path></svg>
+            </button>
+            <button id="rescan-library-top" class="icon-action" type="button" aria-label="Rescan videos" title="Rescan">⟳</button>
           </div>
         </div>
 
-        <div class="video-library-toolbar">
+        <div class="video-library-toolbar" id="video-library-toolbar">
           <label class="library-search">
-            <span>⌕</span>
-            <input id="video-search" type="search" placeholder="Search videos…">
+            <span aria-hidden="true">⌕</span>
+            <input id="video-search" type="search" placeholder="Search videos…" autocomplete="off" aria-label="Search videos">
           </label>
+          <div class="library-tabs" role="tablist" aria-label="Video library view">
+            <button id="video-tab-all" class="library-tab selected" type="button" role="tab" aria-selected="true">▣ Videos</button>
+            <button id="video-tab-folders" class="library-tab" type="button" role="tab" aria-selected="false">▤ Folders</button>
+          </div>
         </div>
 
-        <!-- ================= FULL-WIDTH STYLISH VIDEO PLAYER ================= -->
-        <div id="media-stage" class="media-stage">
-          <div id="video-frame" class="video-frame">
-            
+        <div id="video-folder-strip" class="video-folder-strip" aria-label="Video folders" role="tablist"></div>
+
+        <div id="audio-library-tools" class="audio-library-tools hidden" aria-hidden="true">
+          <button id="show-all-songs" type="button"></button>
+          <button id="show-favorites" type="button"></button>
+          <select id="folder-filter"><option value="__all__">All</option></select>
+          <select id="shuffle-scope"><option value="folder">Folder</option></select>
+        </div>
+
+        <div id="empty-library" class="empty-library">
+          <div class="empty-icon" id="empty-icon" aria-hidden="true">🎬</div>
+          <strong id="empty-title">Your video library is ready</strong>
+          <p id="empty-description">Scan your device to find videos, then tap a video to play.</p>
+        </div>
+
+        <!-- ================= MEDIA STAGE (VIDEO PLAYER) ================= -->
+        <div id="media-stage" class="media-stage hidden">
+          <div id="artwork" class="artwork hidden" aria-hidden="true"><span>▶</span></div>
+          
+          <div id="video-frame" class="video-frame hidden">
             <!-- 🔒 FLOATING UNLOCK BUTTON -->
-            <button id="video-floating-unlock" class="floating-unlock hidden" type="button">
-              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="11" width="18" height="11" rx="2"></rect><path d="M7 11V7a5 5 0 0 1 9.9-1"></path></svg>
+            <button id="video-floating-unlock" class="floating-unlock hidden" type="button" aria-label="Unlock screen">
+              <svg viewBox="0 0 24 24" class="lock-svg" fill="none" stroke="currentColor" stroke-width="2.2">
+                <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                <path d="M7 11V7a5 5 0 0 1 9.9-1"></path>
+              </svg>
               <span>Tap to Unlock</span>
             </button>
 
-            <!-- FULL-WIDTH OVERLAY -->
-            <div id="video-overlay-controls" class="video-overlay-controls">
+            <button id="collapse-video-stage" class="collapse-video-stage" type="button" aria-label="Hide video and show full list" title="Hide video to browse list">
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg>
+            </button>
+
+            <!-- FULL-WIDTH OVERLAY CONTROLS -->
+            <div id="video-overlay-controls" class="video-overlay-controls hidden">
               
-              <!-- TOP: Title + Speed -->
+              <!-- TOP BAR -->
               <div class="video-overlay-top">
-                <span id="video-overlay-title">No video selected</span>
+                <span id="video-overlay-title" class="video-title-display">Now playing</span>
                 <div class="video-speed-wrap">
-                  <button id="video-overlay-speed" type="button" class="speed-pill">1.0×</button>
-                </div>
-              </div>
-
-              <!-- CENTER: Standard Sequence (Rewind 15s | Prev | Play | Next | Fwd 15s) -->
-              <div class="video-overlay-center">
-                <button id="video-overlay-rewind" class="c-btn" type="button" title="Back 15s">↶ 15</button>
-                <button id="video-overlay-previous" class="c-btn" type="button" title="Previous">⏮</button>
-                <button id="video-overlay-play" class="c-btn play-main" type="button" title="Play">▶</button>
-                <button id="video-overlay-next" class="c-btn" type="button" title="Next">⏭</button>
-                <button id="video-overlay-forward" class="c-btn" type="button" title="Forward 15s">15 ↷</button>
-              </div>
-
-              <!-- BOTTOM: Timeline + Utilities -->
-              <div class="video-overlay-bottom">
-                <div class="timeline-row">
-                  <span id="video-current-time">0:00</span>
-                  <input id="video-seekbar" type="range" min="0" max="1000" value="0" class="v-seekbar">
-                  <span id="video-total-time">0:00</span>
-                </div>
-
-                <div class="utility-row">
-                  <button id="video-overlay-lock" class="u-btn" type="button">🔒 <small>Lock</small></button>
-                  <div class="u-right">
-                    <button id="video-overlay-volume" class="u-btn" type="button">🔊 <small>Vol</small></button>
-                    <button id="video-overlay-display" class="u-btn" type="button">⛶ <small>Fit</small></button>
-                    <button id="video-overlay-landscape" class="u-btn" type="button">⤢ <small>Rotate</small></button>
+                  <button id="video-overlay-speed" class="speed-pill-btn" type="button" aria-label="Speed">
+                    <span id="video-overlay-speed-label">1×</span>
+                  </button>
+                  <div id="video-speed-menu" class="video-speed-menu hidden" role="listbox">
+                    <button type="button" data-speed="0.5">0.5×</button>
+                    <button type="button" data-speed="0.75">0.75×</button>
+                    <button type="button" data-speed="1">1× Normal</button>
+                    <button type="button" data-speed="1.25">1.25×</button>
+                    <button type="button" data-speed="1.5">1.5×</button>
+                    <button type="button" data-speed="2">2×</button>
                   </div>
                 </div>
               </div>
 
+              <!-- CENTER BAR: Standard Sequence (Rewind 15s | Prev | Play | Next | Fwd 15s) -->
+              <div class="video-overlay-center">
+                <button id="video-overlay-rewind" class="center-btn sec-btn" type="button" title="Back 15 seconds">↶ 15</button>
+                <button id="video-overlay-previous" class="center-btn sec-btn" type="button" title="Previous video">⏮</button>
+                <button id="video-overlay-play" class="center-btn prime-play-btn" type="button" title="Play/Pause">▶</button>
+                <button id="video-overlay-next" class="center-btn sec-btn" type="button" title="Next video">⏭</button>
+                <button id="video-overlay-forward" class="center-btn sec-btn" type="button" title="Forward 15 seconds">15 ↷</button>
+              </div>
+
+              <!-- BOTTOM BAR: Seekbar + Utilities -->
+              <div class="video-overlay-bottom">
+                <div class="video-timeline-full">
+                  <span id="video-current-time" class="time-label">0:00</span>
+                  <input id="video-seekbar" class="video-seekbar" type="range" min="0" max="1000" value="0" aria-label="Seek video">
+                  <span id="video-total-time" class="time-label">0:00</span>
+                </div>
+
+                <div class="video-utility-row">
+                  <button id="video-overlay-lock" class="util-btn" type="button" title="Lock controls">
+                    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+                    <small>Lock</small>
+                  </button>
+
+                  <div class="util-right-group">
+                    <div class="volume-container">
+                      <button id="video-overlay-volume" class="util-btn" type="button" title="Volume">
+                        <span class="util-icon">🔊</span>
+                        <small id="video-volume-label">Vol</small>
+                      </button>
+                      <div id="video-overlay-volume-panel" class="video-overlay-volume-panel hidden">
+                        <input id="video-overlay-volume-slider" type="range" min="0" max="100" value="100" aria-label="Video volume">
+                      </div>
+                    </div>
+
+                    <button id="video-overlay-display" class="util-btn" type="button" title="Fit / Fullscreen">
+                      <span class="util-icon">⛶</span>
+                      <small id="video-display-label">Fit</small>
+                    </button>
+
+                    <button id="video-overlay-landscape" class="util-btn" type="button" title="Rotate">
+                      <span class="util-icon">⤢</span>
+                      <small>Rotate</small>
+                    </button>
+                  </div>
+                </div>
+              </div>
             </div>
 
-            <video id="video-element" class="video-element" playsinline preload="metadata"></video>
+            <video id="video-element" class="video-element hidden" playsinline preload="metadata"></video>
           </div>
+
+          <div class="track-details">
+            <h3 id="current-name">Nothing selected</h3>
+            <p id="current-type">LOCAL VIDEO</p>
+          </div>
+
+          <audio id="audio-element" class="hidden" preload="metadata"></audio>
+          <div id="audio-controls" class="custom-controls hidden" aria-hidden="true"></div>
+          <div id="video-status" class="video-status hidden"></div>
         </div>
 
         <section class="playlist-section">
+          <div class="playlist-header">
+            <div>
+              <p class="eyebrow">YOUR DEVICE</p>
+              <h3>Videos <span id="track-count">0</span></h3>
+            </div>
+          </div>
           <div id="playlist" class="playlist">
-            <div class="playlist-empty" id="empty-msg">Tap 'Rescan' or 'Choose Files' to load videos.</div>
+            <div class="playlist-empty">Your scanned videos will appear here.</div>
           </div>
         </section>
 
-        <!-- SAFE BOTTOM NAVIGATION -->
-        <nav class="bottom-navigation">
-          <button class="bottom-nav-item" type="button" id="bottom-audio-return">
+        <!-- BOTTOM NAV BAR -->
+        <nav class="bottom-navigation" aria-label="Main navigation">
+          <button class="bottom-nav-item audio-return-item" type="button" id="bottom-audio-return" aria-label="Return to audio player">
             <span>♫</span>
-            <small>Audio Player</small>
+            <small>Audio</small>
           </button>
-          <button class="bottom-nav-item active" type="button" id="bottom-rescan">
+          <button class="bottom-nav-item active" type="button" id="bottom-library">
+            <span>▦</span>
+            <small>Library</small>
+          </button>
+          <button class="bottom-nav-item" type="button" id="bottom-folders">
+            <span>▤</span>
+            <small>Folders</small>
+          </button>
+          <button class="bottom-nav-item" type="button" id="bottom-rescan">
             <span>⟳</span>
             <small>Rescan</small>
           </button>
-          <button class="bottom-nav-item" type="button" id="manual-file-btn">
-            <span>📁</span>
-            <small>Choose Files</small>
-          </button>
         </nav>
-        <input type="file" id="video-file-input" accept="video/*" multiple style="display:none">
+        <p class="local-footnote">Files are opened from your device. This app does not upload or share them.</p>
+        <input type="file" id="video-file-picker" accept="video/*" multiple hidden>
       </section>
     </main>
-
   </div>
 
-  <!-- BULLETPROOF INLINE SCRIPT (Zero Crash Guarantee) -->
-  <script>
-    (function() {
-      // 1. SAFE AUDIO RETURN (Cross-Origin Block Proof)
-      const audioReturnBtn = document.getElementById('bottom-audio-return');
-      audioReturnBtn.addEventListener('click', function(e) {
-        e.preventDefault();
-        e.stopPropagation();
-
-        // Method A: Direct Parent Nav Trigger
-        try {
-          if (window.parent && window.parent !== window) {
-            const homeBtn = window.parent.document.querySelector('.nav[data-page="home"]') 
-                         || window.parent.document.querySelector('[data-page="home"]');
-            if (homeBtn) {
-              homeBtn.click();
-              return;
-            }
-          }
-        } catch (err) {
-          console.log('Direct parent touch blocked by webview, using postMessage fallback');
-        }
-
-        // Method B: Universal PostMessage Fallback
-        const msgs = ['home', 'meraj:home', 'NAVIGATE_HOME', { type: 'meraj:navigateTo', page: 'home' }];
-        msgs.forEach(m => window.parent.postMessage(m, '*'));
-      });
-
-      // 2. VIDEO PLAYER CONTROLS & TIMELINE
-      const video = document.getElementById('video-element');
-      const playBtn = document.getElementById('video-overlay-play');
-      const seekbar = document.getElementById('video-seekbar');
-      const curTime = document.getElementById('video-current-time');
-      const totTime = document.getElementById('video-total-time');
-      const title = document.getElementById('video-overlay-title');
-      const frame = document.getElementById('video-frame');
-      const overlay = document.getElementById('video-overlay-controls');
-
-      function fmt(s) {
-        if (!s || isNaN(s)) return '0:00';
-        const m = Math.floor(s / 60);
-        const sec = Math.floor(s % 60);
-        return m + ':' + (sec < 10 ? '0' : '') + sec;
-      }
-
-      playBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        if (video.paused) {
-          video.play().catch(e => console.log(e));
-          playBtn.textContent = '❚❚';
-        } else {
-          video.pause();
-          playBtn.textContent = '▶';
-        }
-      });
-
-      video.addEventListener('timeupdate', function() {
-        if (video.duration) {
-          curTime.textContent = fmt(video.currentTime);
-          totTime.textContent = fmt(video.duration);
-          seekbar.value = Math.floor((video.currentTime / video.duration) * 1000);
-        }
-      });
-
-      seekbar.addEventListener('input', function() {
-        if (video.duration) {
-          video.currentTime = (seekbar.value / 1000) * video.duration;
-        }
-      });
-
-      document.getElementById('video-overlay-rewind').addEventListener('click', function(e) {
-        e.stopPropagation();
-        video.currentTime = Math.max(0, video.currentTime - 15);
-      });
-
-      document.getElementById('video-overlay-forward').addEventListener('click', function(e) {
-        e.stopPropagation();
-        video.currentTime = Math.min(video.duration || 0, video.currentTime + 15);
-      });
-
-      // Display Fit Mode
-      let fitMode = 0;
-      document.getElementById('video-overlay-display').addEventListener('click', function(e) {
-        e.stopPropagation();
-        fitMode = (fitMode + 1) % 3;
-        if (fitMode === 0) { video.style.objectFit = 'contain'; this.querySelector('small').textContent = 'Fit'; }
-        if (fitMode === 1) { video.style.objectFit = 'cover'; this.querySelector('small').textContent = 'Zoom'; }
-        if (fitMode === 2) { video.style.objectFit = 'fill'; this.querySelector('small').textContent = 'Stretch'; }
-      });
-
-      // 3. 🔒 FOOLPROOF LOCK SYSTEM
-      let isLocked = false;
-      let lockTimer = null;
-      const lockBtn = document.getElementById('video-overlay-lock');
-      const unlockBtn = document.getElementById('video-floating-unlock');
-
-      lockBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        isLocked = true;
-        frame.classList.add('is-locked');
-        overlay.classList.add('hidden');
-        showUnlockPill();
-      });
-
-      unlockBtn.addEventListener('click', function(e) {
-        e.stopPropagation();
-        isLocked = false;
-        frame.classList.remove('is-locked');
-        unlockBtn.classList.add('hidden');
-        overlay.classList.remove('hidden');
-      });
-
-      frame.addEventListener('click', function() {
-        if (isLocked) {
-          showUnlockPill();
-        } else {
-          overlay.classList.toggle('hidden');
-        }
-      });
-
-      function showUnlockPill() {
-        unlockBtn.classList.remove('hidden');
-        clearTimeout(lockTimer);
-        lockTimer = setTimeout(function() {
-          if (isLocked) unlockBtn.classList.add('hidden');
-        }, 3000);
-      }
-
-      // 4. SCANNER & PARENT BRIDGE
-      function triggerScan() {
-        document.getElementById('empty-msg').textContent = "Scanning media from device storage…";
-        // Call Parent to trigger Android MediaStore scan
-        window.parent.postMessage({ type: 'meraj:scanVideos' }, '*');
-        window.parent.postMessage({ action: 'scan' }, '*');
-      }
-
-      document.getElementById('rescan-library-top').addEventListener('click', triggerScan);
-      document.getElementById('bottom-rescan').addEventListener('click', triggerScan);
-
-      // Manual File Picker Fallback (Direct play guarantee)
-      const fileInput = document.getElementById('video-file-input');
-      document.getElementById('manual-file-btn').addEventListener('click', function() {
-        fileInput.click();
-      });
-
-      fileInput.addEventListener('change', function(e) {
-        const files = Array.from(e.target.files || []);
-        if (files.length > 0) {
-          const list = document.getElementById('playlist');
-          list.innerHTML = '';
-          files.forEach(function(f) {
-            const row = document.createElement('div');
-            row.className = 'video-item';
-            row.innerHTML = '<strong>' + f.name + '</strong>';
-            row.onclick = function() {
-              video.src = URL.createObjectURL(f);
-              title.textContent = f.name;
-              video.play();
-              playBtn.textContent = '❚❚';
-            };
-            list.appendChild(row);
-          });
-          // Play first file
-          video.src = URL.createObjectURL(files[0]);
-          title.textContent = files[0].name;
-          video.play();
-          playBtn.textContent = '❚❚';
-        }
-      });
-
-      // Listen for scanned videos from Android Host
-      window.addEventListener('message', function(evt) {
-        if (!evt.data) return;
-        const data = evt.data.videos || evt.data;
-        if (Array.isArray(data) && data.length > 0) {
-          const list = document.getElementById('playlist');
-          list.innerHTML = '';
-          data.forEach(function(item) {
-            const row = document.createElement('div');
-            row.className = 'video-item';
-            row.innerHTML = '<strong>' + (item.name || item.title || 'Video') + '</strong>';
-            row.onclick = function() {
-              video.src = item.url || item.uri || item.path;
-              title.textContent = item.name || item.title;
-              video.play();
-              playBtn.textContent = '❚❚';
-            };
-            list.appendChild(row);
-          });
-        }
-      });
-    })();
-  </script>
+  <!-- Vite Bundle Reference (Required for asset check) -->
+  <script type="module" src="./video-src/js/app.js"></script>
 </body>
 </html>
