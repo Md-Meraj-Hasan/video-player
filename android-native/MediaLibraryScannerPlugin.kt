@@ -142,6 +142,7 @@ class MediaLibraryScannerPlugin : Plugin() {
             val intent = android.content.Intent(context, NativeVideoPlayerActivity::class.java).apply {
                 putExtra(NativeVideoPlayerActivity.EXTRA_URI, uri.toString())
                 putExtra(NativeVideoPlayerActivity.EXTRA_TITLE, call.getString("name", "Video") ?: "Video")
+                putExtra(NativeVideoPlayerActivity.EXTRA_THEME, call.getString("theme", "default") ?: "default")
                 val queue = call.getArray("queue")
                 val queueUris = ArrayList<String>()
                 val queueTitles = ArrayList<String>()

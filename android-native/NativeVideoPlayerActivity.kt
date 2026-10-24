@@ -60,6 +60,8 @@ class NativeVideoPlayerActivity : Activity() {
     private lateinit var scaleDetector: ScaleGestureDetector
     private var pinchScale = 1f
     private var isPinching = false
+    // True for the entire multi-touch sequence, even after ScaleGestureDetector ends.
+    private var multiTouchGesture = false
     private var controllerFuture: ListenableFuture<MediaController>? = null
     private var controller: MediaController? = null
     private var listener: Player.Listener? = null
@@ -160,6 +162,8 @@ class NativeVideoPlayerActivity : Activity() {
             scaleDetector.onTouchEvent(event)
             when (event.actionMasked) {
                 MotionEvent.ACTION_DOWN -> {
+                    multiTouchGesture = false
+                    isPinching = false
                     gestureStartX = event.x
                     gestureStartY = event.y
                     val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
@@ -172,8 +176,25 @@ class NativeVideoPlayerActivity : Activity() {
                     sideGestureAdjusted = false
                     gestureIndicator.visibility = View.GONE
                 }
+                MotionEvent.ACTION_POINTER_DOWN -> {
+                    // Pinch zoom takes priority: never let the same two-finger motion
+                    // enter the one-finger brightness/volume swipe handler.
+                    multiTouchGesture = true
+                    isPinching = true
+                    activeSideGesture = 0
+                    sideGestureAdjusted = false
+                    gestureIndicator.visibility = View.GONE
+                    handler.removeCallbacks(hideControls)
+                }
                 MotionEvent.ACTION_MOVE -> {
-                    if (!isPinching && !sideGestureAdjusted) {
+                    if (event.pointerCount > 1) {
+                        multiTouchGesture = true
+                        isPinching = true
+                        activeSideGesture = 0
+                        sideGestureAdjusted = false
+                        gestureIndicator.visibility = View.GONE
+                    }
+                    if (event.pointerCount == 1 && !isPinching && !multiTouchGesture && !sideGestureAdjusted) {
                         val dx = event.x - gestureStartX
                         val dy = event.y - gestureStartY
                         if (kotlin.math.abs(dy) > dp(24) && kotlin.math.abs(dy) > kotlin.math.abs(dx) * 1.2f) {
@@ -182,7 +203,7 @@ class NativeVideoPlayerActivity : Activity() {
                             handler.removeCallbacks(hideControls)
                         }
                     }
-                    if (!isPinching && sideGestureAdjusted) {
+                    if (event.pointerCount == 1 && !isPinching && !multiTouchGesture && sideGestureAdjusted) {
                         val delta = ((gestureStartY - event.y) / root.height.coerceAtLeast(1).toFloat()).coerceIn(-1f, 1f)
                         if (activeSideGesture == 1) {
                             val brightness = (gestureStartBrightness + delta).coerceIn(0.05f, 1f)
@@ -205,7 +226,14 @@ class NativeVideoPlayerActivity : Activity() {
                     }
                 }
                 MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (sideGestureAdjusted && !isPinching) {
+                    if (multiTouchGesture) {
+                        // Finish pinch without toggling controls or changing fit/fill.
+                        multiTouchGesture = false
+                        isPinching = false
+                        activeSideGesture = 0
+                        sideGestureAdjusted = false
+                        gestureIndicator.visibility = View.GONE
+                    } else if (sideGestureAdjusted && !isPinching) {
                         gestureIndicator.visibility = View.GONE
                     } else if (locked && !isPinching && event.pointerCount <= 1) {
                         handler.removeCallbacks(hideLockedIndicator)
@@ -390,10 +418,10 @@ class NativeVideoPlayerActivity : Activity() {
             return button
         }
         val landscapeControls = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val smallControl = if (landscapeControls) dp(44) else dp(38)
+        val smallControl = if (landscapeControls) dp(48) else dp(40)
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
-        leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl))
+        leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         fitButton = ThemeIconView(this, "fit").apply {
             contentDescription = "Cycle Fit, Zoom and Fill modes"
             setOnClickListener { toggleFit() }
@@ -409,7 +437,7 @@ class NativeVideoPlayerActivity : Activity() {
                 else Toast.makeText(this, "This is the first video in the queue", Toast.LENGTH_SHORT).show()
             } ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
-        leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl))
+        leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         middle.addView(leftGroup, LinearLayout.LayoutParams(-2, smallControl))
 
         val rightGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; tag = "meraj-right-control-group" }
@@ -417,10 +445,10 @@ class NativeVideoPlayerActivity : Activity() {
             controller?.let { p -> if (p.hasNextMediaItem()) p.seekToNextMediaItem() else Toast.makeText(this, "No next video in playback queue", Toast.LENGTH_SHORT).show() }
                 ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
-        rightGroup.addView(nextButton, LinearLayout.LayoutParams(smallControl, smallControl))
+        rightGroup.addView(nextButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         val forward = skipButton(false)
-        rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl))
-        rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl))
+        rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         lockButton = ThemeIconView(this, "lock").apply {
             contentDescription = "Lock video controls"
             setOnClickListener {
@@ -441,8 +469,8 @@ class NativeVideoPlayerActivity : Activity() {
                 }
             }
         }
-        rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl))
-        rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl))
+        rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         middle.addView(rightGroup, LinearLayout.LayoutParams(-2, smallControl))
 
         playButton = ImageButton(this).apply {
@@ -573,8 +601,8 @@ class NativeVideoPlayerActivity : Activity() {
                     val bottom = cy + bh
                     val shackle = RectF(cx - bw*.32f, cy - unit*.95f, cx + bw*.32f, top + unit*.2f)
                     canvas.drawArc(shackle, 180f, 180f, false, paint)
-                    canvas.drawRect(left.toFloat(), top.toFloat(), right.toFloat(), bottom.toFloat(), paint)
-                    canvas.drawCircle(cx, top + bh*.42f, dp(2).toFloat(), paint)
+                    canvas.drawRect(RectF(left, top, right, bottom), paint)
+                    canvas.drawCircle(cx, top + bh*.42f, dp(1.8f).toFloat(), paint)
                     canvas.drawLine(cx, top + bh*.42f, cx, top + bh*.66f, paint)
                 }
             }
