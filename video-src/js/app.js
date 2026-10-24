@@ -181,6 +181,7 @@ async function playVideoAtIndex(index) {
       uri: item.uri,
       name: displayName,
       mimeType: item.mimeType || item.type || 'video/*',
+      theme: (() => { try { return localStorage.getItem('merajMusicTheme') || 'default'; } catch (_) { return 'default'; } })(),
       queue
     });
     if (!result?.opened) throw new Error('Native Media3 player did not open.');
@@ -342,6 +343,34 @@ function init() {
 
   // Rescan Buttons
   $('rescan-library-top')?.addEventListener('click', scanDeviceVideos);
+  // Video theme picker shares the same saved theme as the audio player.
+  const videoThemeToggle = $('video-theme-toggle');
+  const videoThemePopover = $('video-theme-popover');
+  const applyVideoTheme = (theme) => {
+    if (!['default', 'green', 'red'].includes(theme)) theme = 'default';
+    document.documentElement.dataset.videoTheme = theme;
+    try { localStorage.setItem('merajMusicTheme', theme); } catch (_) {}
+    videoThemePopover?.querySelectorAll('[data-video-theme]').forEach(b => b.classList.toggle('selected', b.dataset.videoTheme === theme));
+  };
+  let savedVideoTheme = 'default';
+  try { savedVideoTheme = localStorage.getItem('merajMusicTheme') || 'default'; } catch (_) {}
+  applyVideoTheme(savedVideoTheme);
+  videoThemeToggle?.addEventListener('click', (e) => {
+    e.stopPropagation(); videoThemePopover?.classList.toggle('hidden');
+  });
+  videoThemePopover?.addEventListener('click', (e) => {
+    const option = e.target.closest('[data-video-theme]'); if (!option) return;
+    applyVideoTheme(option.dataset.videoTheme); videoThemePopover.classList.add('hidden');
+  });
+  // Close the theme menu only when the tap is outside BOTH the menu and
+  // the entire toggle button. Checking e.target !== button alone closes it
+  // immediately when the user taps the SVG icon inside the button on Android.
+  document.addEventListener('click', (e) => {
+    const target = e.target;
+    if (!videoThemePopover?.contains(target) && !videoThemeToggle?.contains(target)) {
+      videoThemePopover?.classList.add('hidden');
+    }
+  });
   $('bottom-rescan')?.addEventListener('click', scanDeviceVideos);
   $('choose-video')?.addEventListener('click', scanDeviceVideos);
 
