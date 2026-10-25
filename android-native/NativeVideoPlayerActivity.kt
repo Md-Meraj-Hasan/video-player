@@ -355,8 +355,10 @@ class NativeVideoPlayerActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             setPadding(if (landscape) 0 else dp(8), dp(2), if (landscape) 0 else dp(8), dp(4))
-            background = controlDockBackground()
-            elevation = dp(8).toFloat()
+            // Keep the controls container transparent. Only the top title bar and
+            // intentionally emphasized buttons get their own visible surfaces.
+            background = null
+            elevation = 0f
         }
         val top = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
@@ -427,8 +429,9 @@ class NativeVideoPlayerActivity : Activity() {
         }
         fun skipButton(reverse: Boolean): View {
             val button = SkipButtonView(this, reverse)
-            button.background = toolBackground()
-            button.elevation = dp(4).toFloat()
+            // Icon-only control: do not draw a decorative square behind the glyph.
+            button.background = null
+            button.elevation = 0f
             button.contentDescription = if (reverse) "Rewind 15 seconds" else "Forward 15 seconds"
             button.isClickable = true
             button.isFocusable = true
@@ -449,14 +452,14 @@ class NativeVideoPlayerActivity : Activity() {
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         fitButton = ThemeIconView(this, "fit").apply {
-            background = toolBackground()
-            elevation = dp(4).toFloat()
+            background = null
+            elevation = 0f
             contentDescription = "Cycle Fit, Zoom and Fill modes"
             setOnClickListener { toggleFit() }
         }
         rotateButton = ThemeIconView(this, "rotate").apply {
-            background = toolBackground()
-            elevation = dp(4).toFloat()
+            background = null
+            elevation = 0f
             contentDescription = "Rotate screen"
             setOnClickListener { toggleOrientation(); showControls() }
         }
@@ -480,8 +483,8 @@ class NativeVideoPlayerActivity : Activity() {
         rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         lockButton = ThemeIconView(this, "lock").apply {
-            background = toolBackground()
-            elevation = dp(4).toFloat()
+            background = null
+            elevation = 0f
             contentDescription = "Lock video controls"
             setOnClickListener {
                 locked = !locked
@@ -525,8 +528,9 @@ class NativeVideoPlayerActivity : Activity() {
         val seekRow = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
-            background = controlDockBackground()
-            elevation = dp(3).toFloat()
+            // The parent control dock supplies the single panel surface; avoid a nested box.
+            setBackgroundColor(Color.TRANSPARENT)
+            elevation = 0f
             setPadding(dp(8), dp(2), dp(8), dp(2))
         }
         positionLabel = timeLabel("00:00"); seekRow.addView(positionLabel)
