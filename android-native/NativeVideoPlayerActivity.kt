@@ -448,10 +448,12 @@ class NativeVideoPlayerActivity : Activity() {
             return button
         }
         val landscapeControls = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val smallControl = if (landscapeControls) dp(48) else dp(40)
+        // Portrait needs a compact row so all controls fit on first launch;
+        // otherwise the fixed center Play button can overlap the Next control.
+        val smallControl = if (landscapeControls) dp(48) else dp(34)
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
-        leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         fitButton = ThemeIconView(this, "fit").apply {
             background = toolBackground()
             elevation = dp(5).toFloat()
@@ -471,7 +473,7 @@ class NativeVideoPlayerActivity : Activity() {
                 else Toast.makeText(this, "This is the first video in the queue", Toast.LENGTH_SHORT).show()
             } ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
-        leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         middle.addView(leftGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
             if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
         })
@@ -481,10 +483,10 @@ class NativeVideoPlayerActivity : Activity() {
             controller?.let { p -> if (p.hasNextMediaItem()) p.seekToNextMediaItem() else Toast.makeText(this, "No next video in playback queue", Toast.LENGTH_SHORT).show() }
                 ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
-        rightGroup.addView(nextButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        rightGroup.addView(nextButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         val forward = skipButton(false)
-        rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
-        rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
+        rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         lockButton = ThemeIconView(this, "lock").apply {
             background = toolBackground()
             elevation = dp(5).toFloat()
@@ -507,8 +509,8 @@ class NativeVideoPlayerActivity : Activity() {
                 }
             }
         }
-        rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
-        rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
+        rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
+        rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         middle.addView(rightGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
             if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
         })
@@ -760,7 +762,7 @@ class NativeVideoPlayerActivity : Activity() {
                    blendColor(Color.rgb(9, 12, 22), accentColor, 0.20f))
     ).apply {
         shape = GradientDrawable.OVAL
-        setStroke(dp(2).toInt().coerceAtLeast(1), blendColor(Color.WHITE, accentColor, 0.72f))
+        setStroke(dp(2), blendColor(Color.WHITE, accentColor, 0.72f))
     }
     private fun primaryToolBackground() = GradientDrawable(
         GradientDrawable.Orientation.TOP_BOTTOM,
