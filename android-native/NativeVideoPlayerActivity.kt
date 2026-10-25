@@ -364,8 +364,9 @@ class NativeVideoPlayerActivity : Activity() {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = controlDockBackground()
-            elevation = dp(6).toFloat()
+            // Keep the speed/title/share row transparent: remove the extra outer dock box.
+            background = null
+            elevation = 0f
         }
         // Requested layout: speed button on the LEFT, title in the middle, share on the RIGHT.
         speedButton = compactTool("⏱") { showSpeedPicker() }.apply {
@@ -400,8 +401,7 @@ class NativeVideoPlayerActivity : Activity() {
         }
         top.addView(shareButton, LinearLayout.LayoutParams(-2, dp(48)))
         topBar = top
-        top.background = controlDockBackground()
-        top.elevation = dp(6).toFloat()
+        // No outer rounded rectangle around speed, title, and share; button circles remain.
         root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
         // Transparent, balanced control row: previous immediately left of the centered Play/Pause,
