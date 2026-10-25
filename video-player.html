@@ -21,6 +21,14 @@
     #rescan-library-top .scan-label{font-size:9px!important;line-height:10px!important;font-weight:900!important;letter-spacing:1px!important;color:currentColor!important;display:block!important}
     :root[data-video-theme="green"] #rescan-library-top,:root[data-video-theme="green"] #video-theme-toggle{background:#064e3b!important;border-color:#20e69a!important;color:#6ee7b7!important}
     :root[data-video-theme="red"] #rescan-library-top,:root[data-video-theme="red"] #video-theme-toggle{background:#881337!important;border-color:#ff496b!important;color:#ffe4e6!important}
+    :root[data-video-theme="silver"] #rescan-library-top,:root[data-video-theme="silver"] #video-theme-toggle{background:#414954!important;border-color:#d5dbe5!important;color:#f4f6fa!important}
+    :root[data-video-theme="graphite"] #rescan-library-top,:root[data-video-theme="graphite"] #video-theme-toggle{background:#303844!important;border-color:#aeb7c4!important;color:#eef2f7!important}
+    :root[data-video-theme="blue"] #rescan-library-top,:root[data-video-theme="blue"] #video-theme-toggle{background:#173b61!important;border-color:#60a5fa!important;color:#dbeafe!important}
+    :root[data-video-theme="ocean"] #rescan-library-top,:root[data-video-theme="ocean"] #video-theme-toggle{background:#174657!important;border-color:#38bdf8!important;color:#cffafe!important}
+    :root[data-video-theme="sunset"] #rescan-library-top,:root[data-video-theme="sunset"] #video-theme-toggle{background:#54253b!important;border-color:#fb7185!important;color:#fdba74!important}
+    :root[data-video-theme="gold"] #rescan-library-top,:root[data-video-theme="gold"] #video-theme-toggle{background:#514018!important;border-color:#eab308!important;color:#fef3c7!important}
+    :root[data-video-theme="ice"] #rescan-library-top,:root[data-video-theme="ice"] #video-theme-toggle{background:#204653!important;border-color:#67e8f9!important;color:#bfdbfe!important}
+    #video-theme-popover{display:none!important}
 </style>
 </head>
 <body>
@@ -58,7 +66,7 @@
           </div>
           <div class="library-head-actions" style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;position:relative!important;">
             <button id="rescan-library-top" class="icon-action" type="button" aria-label="Scan videos" title="Scan videos"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20 7v5h-5M4.8 9A7.5 7.5 0 0 1 18 6l2 6M4 17v-5h5m10.2 3A7.5 7.5 0 0 1 6 18l-2-6"/></svg><span class="scan-label">SCAN</span></button>
-            <button id="video-theme-toggle" class="icon-action video-theme-toggle" type="button" aria-label="Choose video theme" title="Choose theme" style="display:grid!important;visibility:visible!important;opacity:1!important;flex:0 0 42px!important;width:42px!important;height:42px!important;min-width:42px!important;padding:0!important;background:#241044!important;border:2px solid #a66cff!important;color:#d8b4fe!important;place-items:center!important;position:relative!important;z-index:5!important;"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2.3 2.3 0 0 0 1.4-4.1 1.6 1.6 0 0 1 1-2.9H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="11" cy="6.5" r="1"/><circle cx="15.5" cy="8" r="1"/></svg></button>
+            <button id="video-theme-toggle" class="icon-action video-theme-toggle" type="button" aria-label="Change color theme" title="Change color theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3a9 9 0 1 0 0 18h1.2a2.3 2.3 0 0 0 1.4-4.1 1.6 1.6 0 0 1 1-2.9H17a4 4 0 0 0 4-4c0-3.9-4-7-9-7Z"/><circle cx="7.5" cy="10" r="1"/><circle cx="11" cy="6.5" r="1"/><circle cx="15.5" cy="8" r="1"/></svg></button>
             <div id="video-theme-popover" class="video-theme-popover hidden" role="dialog" aria-label="Choose video theme">
               <button type="button" data-video-theme="default"><span class="theme-dot theme-purple"></span>Default</button>
               <button type="button" data-video-theme="green"><span class="theme-dot theme-green"></span>Green</button>
