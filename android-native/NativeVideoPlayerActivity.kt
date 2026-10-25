@@ -760,7 +760,7 @@ class NativeVideoPlayerActivity : Activity() {
                    blendColor(Color.rgb(9, 12, 22), accentColor, 0.20f))
     ).apply {
         shape = GradientDrawable.OVAL
-        setStroke(dp(1.5f).toInt().coerceAtLeast(1), blendColor(Color.WHITE, accentColor, 0.72f))
+        setStroke(dp(2).toInt().coerceAtLeast(1), blendColor(Color.WHITE, accentColor, 0.72f))
     }
     private fun primaryToolBackground() = GradientDrawable(
         GradientDrawable.Orientation.TOP_BOTTOM,
