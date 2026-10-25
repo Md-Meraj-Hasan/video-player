@@ -374,13 +374,13 @@ class NativeVideoPlayerActivity : Activity() {
             background = toolBackground()
             elevation = dp(5).toFloat()
             setTextColor(accentColor)
-            minWidth = dp(48)
-            textSize = 23f
-            setPadding(dp(6), dp(6), dp(6), dp(6))
+            minWidth = dp(42)
+            textSize = 18f
+            setPadding(dp(4), dp(4), dp(4), dp(4))
             isClickable = true
             isFocusable = true
         }
-        top.addView(speedButton, LinearLayout.LayoutParams(-2, dp(48)))
+        top.addView(speedButton, LinearLayout.LayoutParams(dp(42), dp(42)))
         titleLabel = TextView(this).apply {
             text = videoTitle; setTextColor(Color.WHITE); textSize = 14f
             maxLines = 1; ellipsize = android.text.TextUtils.TruncateAt.END
@@ -393,13 +393,13 @@ class NativeVideoPlayerActivity : Activity() {
             background = toolBackground()
             elevation = dp(5).toFloat()
             setTextColor(accentColor)
-            minWidth = dp(48)
-            textSize = 26f
-            setPadding(dp(6), dp(6), dp(6), dp(6))
+            minWidth = dp(42)
+            textSize = 20f
+            setPadding(dp(4), dp(4), dp(4), dp(4))
             isClickable = true
             isFocusable = true
         }
-        top.addView(shareButton, LinearLayout.LayoutParams(-2, dp(48)))
+        top.addView(shareButton, LinearLayout.LayoutParams(dp(42), dp(42)))
         topBar = top
         // No outer rounded rectangle around speed, title, and share; button circles remain.
         root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
