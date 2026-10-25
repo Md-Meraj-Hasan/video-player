@@ -22,6 +22,7 @@ import android.view.MotionEvent
 import android.view.ScaleGestureDetector
 import android.view.View
 import android.view.WindowManager
+import android.util.TypedValue
 import android.widget.FrameLayout
 import android.widget.ImageButton
 import android.widget.LinearLayout
@@ -29,6 +30,7 @@ import android.widget.PopupWindow
 import android.widget.SeekBar
 import android.widget.TextView
 import android.widget.Toast
+import androidx.media3.common.C
 import androidx.media3.common.MediaItem
 import androidx.media3.common.MediaMetadata
 import androidx.media3.common.Player
@@ -55,6 +57,8 @@ class NativeVideoPlayerActivity : Activity() {
     private lateinit var rotateButton: View
     private lateinit var lockButton: View
     private lateinit var shareButton: TextView
+    private lateinit var subtitleButton: TextView
+    private var subtitlesEnabled = true
     private lateinit var volumeButton: TextView
     private lateinit var titleLabel: TextView
     private lateinit var scaleDetector: ScaleGestureDetector
@@ -114,10 +118,19 @@ class NativeVideoPlayerActivity : Activity() {
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
         themeName = intent.getStringExtra(EXTRA_THEME) ?: "default"
-        accentColor = when (themeName) {
-            "green" -> Color.rgb(45, 220, 145)
-            "red" -> Color.rgb(255, 75, 105)
-            else -> Color.rgb(155, 105, 255)
+        // Keep the native Media3 player in sync with the palette selected in the HTML library.
+        // Values intentionally cover every theme offered by the audio/video library UI.
+        accentColor = when (themeName.lowercase(Locale.ROOT)) {
+            "green" -> Color.rgb(32, 230, 154)
+            "red" -> Color.rgb(255, 73, 107)
+            "silver" -> Color.rgb(213, 219, 229)
+            "graphite" -> Color.rgb(174, 183, 196)
+            "blue" -> Color.rgb(96, 165, 250)
+            "ocean" -> Color.rgb(56, 189, 248)
+            "sunset" -> Color.rgb(251, 113, 133)
+            "gold" -> Color.rgb(234, 179, 8)
+            "ice" -> Color.rgb(103, 232, 249)
+            else -> Color.rgb(166, 108, 255) // premium purple default
         }
         root = FrameLayout(this).apply { setBackgroundColor(Color.BLACK) }
         playerView = PlayerView(this).apply {
@@ -125,6 +138,11 @@ class NativeVideoPlayerActivity : Activity() {
             resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setKeepContentOnPlayerReset(true)
+        }
+        // Keep subtitle captions readable and inside a predictable lower video area.
+        playerView.subtitleView?.apply {
+            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
+            setBottomPaddingFraction(0.14f)
         }
         root.addView(playerView, FrameLayout.LayoutParams(-1, -1))
         gestureIndicator = View(this).apply {
@@ -331,6 +349,27 @@ class NativeVideoPlayerActivity : Activity() {
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
     }
 
+    private fun toggleSubtitles() {
+        val player = controller
+        if (player == null) {
+            Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
+            return
+        }
+        subtitlesEnabled = !subtitlesEnabled
+        val params = player.trackSelectionParameters.buildUpon()
+            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
+            .build()
+        player.trackSelectionParameters = params
+        subtitleButton.text = if (subtitlesEnabled) "CC" else "CC×"
+        subtitleButton.setTextColor(if (subtitlesEnabled) Color.BLACK else Color.WHITE)
+        subtitleButton.background = GradientDrawable().apply {
+            setColor(if (subtitlesEnabled) accentColor else Color.rgb(65, 65, 75))
+            cornerRadius = dp(8).toFloat()
+        }
+        subtitleButton.contentDescription = if (subtitlesEnabled) "Subtitles on; tap to turn off" else "Subtitles off; tap to turn on"
+        showControls()
+    }
+
     private fun buildControls() {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -373,6 +412,25 @@ class NativeVideoPlayerActivity : Activity() {
             isClickable = true
             isFocusable = true
         }
+        // CC button toggles Media3 text tracks on/off; its solid accent styling follows the theme.
+        subtitleButton = compactTool("CC") { toggleSubtitles() }.apply {
+            contentDescription = "Turn subtitles off or on"
+            textSize = 14f
+            typeface = Typeface.DEFAULT_BOLD
+            setTextColor(Color.BLACK)
+            background = GradientDrawable().apply {
+                setColor(accentColor)
+                cornerRadius = dp(8).toFloat()
+            }
+            minWidth = dp(42)
+            minHeight = dp(36)
+            setPadding(dp(8), dp(4), dp(8), dp(4))
+            isClickable = true
+            isFocusable = true
+        }
+        top.addView(subtitleButton, LinearLayout.LayoutParams(-2, dp(36)).apply {
+            leftMargin = dp(4); rightMargin = dp(6)
+        })
         top.addView(shareButton, LinearLayout.LayoutParams(-2, dp(48)))
         topBar = top
         top.background = null
@@ -573,7 +631,7 @@ class NativeVideoPlayerActivity : Activity() {
                             paint.style = Paint.Style.STROKE
                             canvas.drawRoundRect(RectF(cx-unit, cy-unit, cx+unit, cy+unit), dp(2).toFloat(), dp(2).toFloat(), paint)
                             paint.style = Paint.Style.FILL
-                            canvas.drawRect(cx-unit*.48f, cy-unit*.48f, cx+unit*.48f, cy+unit*.48f, paint)
+                            canvas.drawRect(RectF(cx-unit*.48f, cy-unit*.48f, cx+unit*.48f, cy+unit*.48f), paint)
                             paint.style = Paint.Style.STROKE
                         }
                     }
@@ -659,6 +717,19 @@ class NativeVideoPlayerActivity : Activity() {
             val baseline = cy - (textPaint.ascent() + textPaint.descent()) / 2f
             canvas.drawText("15", cx, baseline, textPaint)
         }
+    }
+
+    private fun blendColor(base: Int, accent: Int, amount: Float): Int {
+        val a = amount.coerceIn(0f, 1f)
+        val r = (Color.red(base) * (1f - a) + Color.red(accent) * a).toInt()
+        val g = (Color.green(base) * (1f - a) + Color.green(accent) * a).toInt()
+        val b = (Color.blue(base) * (1f - a) + Color.blue(accent) * a).toInt()
+        return Color.rgb(r, g, b)
+    }
+
+    private fun contrastTextColor(color: Int): Int {
+        val luminance = (Color.red(color) * 299 + Color.green(color) * 587 + Color.blue(color) * 114) / 1000
+        return if (luminance > 155) Color.BLACK else Color.WHITE
     }
 
     private fun solidButton(color: Int) = GradientDrawable().apply {
@@ -870,9 +941,9 @@ class NativeVideoPlayerActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             setPadding(dp(4), dp(4), dp(4), dp(4))
             background = GradientDrawable().apply {
-                setColor(Color.rgb(31, 24, 46))
+                setColor(blendColor(Color.BLACK, accentColor, 0.22f))
                 cornerRadius = dp(10).toFloat()
-                setStroke(dp(1), Color.rgb(112, 55, 190))
+                setStroke(dp(1), accentColor)
             }
         }
         var popup: PopupWindow? = null
@@ -885,7 +956,8 @@ class NativeVideoPlayerActivity : Activity() {
                 gravity = Gravity.CENTER_VERTICAL
                 setPadding(dp(14), dp(4), dp(16), dp(4))
                 minWidth = dp(116)
-                if (value == speed) background = solidButton(Color.rgb(94, 47, 153))
+                if (value == speed) background = solidButton(accentColor)
+                if (value == speed) setTextColor(contrastTextColor(accentColor))
                 setOnClickListener {
                     speed = value
                     controller?.setPlaybackSpeed(speed)
