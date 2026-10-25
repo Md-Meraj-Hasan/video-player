@@ -92,8 +92,8 @@ class NativeVideoPlayerActivity : Activity() {
     private var activeSideGesture = 0 // 0=none, 1=brightness, 2=volume
     private var sideGestureAdjusted = false
     private val handler = Handler(Looper.getMainLooper())
-    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
-    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
+    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; updateSubtitlePosition() } }
+    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; updateSubtitlePosition() } }
     private val progress = object : Runnable {
         override fun run() {
             val p = controller
@@ -139,12 +139,15 @@ class NativeVideoPlayerActivity : Activity() {
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setKeepContentOnPlayerReset(true)
         }
-        // Keep subtitle captions readable and inside a predictable lower video area.
+        // Auto-lift captions into the visible video area. The padding is recalculated
+        // for portrait/landscape and again when controls appear/disappear, so captions
+        // do not sit underneath the bottom seek bar or get clipped by the screen edge.
         playerView.subtitleView?.apply {
             setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-            setBottomPaddingFraction(0.14f)
+            setBottomPaddingFraction(0.28f)
         }
         root.addView(playerView, FrameLayout.LayoutParams(-1, -1))
+        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateSubtitlePosition() }
         gestureIndicator = View(this).apply {
             background = GradientDrawable().apply {
                 setColor(accentColor)
@@ -347,6 +350,29 @@ class NativeVideoPlayerActivity : Activity() {
                 Toast.makeText(this, "Could not open video player", Toast.LENGTH_LONG).show(); finish()
             }
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
+    }
+
+    private fun updateSubtitlePosition() {
+        val subtitleView = playerView.subtitleView ?: return
+        val height = playerView.height
+        if (height <= 0) return
+        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+        val controlsVisible = controls.visibility == View.VISIBLE || topBar.visibility == View.VISIBLE
+        // A larger bottom-padding fraction moves Media3 captions upward. Increase it
+        // further on short screens and while the control strip is visible.
+        val paddingFraction = when {
+            landscape && height < dp(300) && controlsVisible -> 0.34f
+            landscape && controlsVisible -> 0.28f
+            landscape && height < dp(300) -> 0.24f
+            landscape -> 0.18f
+            height < dp(500) && controlsVisible -> 0.38f
+            controlsVisible -> 0.32f
+            height < dp(500) -> 0.30f
+            else -> 0.24f
+        }
+        subtitleView.setBottomPaddingFraction(paddingFraction)
+        subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, if (height < dp(360)) 20f else 22f)
+        subtitleView.invalidate()
     }
 
     private fun toggleSubtitles() {
@@ -834,12 +860,13 @@ class NativeVideoPlayerActivity : Activity() {
     }
     private fun toggleControls() {
         if (controls.visibility == View.VISIBLE || topBar.visibility == View.VISIBLE) {
-            if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; handler.removeCallbacks(hideControls) }
+            if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; handler.removeCallbacks(hideControls); updateSubtitlePosition() }
         } else showControls()
     }
     private fun showControls() {
         controls.visibility = View.VISIBLE
         topBar.visibility = View.VISIBLE
+        updateSubtitlePosition()
         handler.removeCallbacks(hideControls)
         if (!locked) handler.postDelayed(hideControls, 5000)
     }
