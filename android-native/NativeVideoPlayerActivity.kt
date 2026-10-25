@@ -411,7 +411,9 @@ class NativeVideoPlayerActivity : Activity() {
             orientation = LinearLayout.HORIZONTAL
             // Keep the complete playback-tool cluster centered in the available player width.
             gravity = Gravity.CENTER
-            weightSum = 2f
+            // Child weights are leftGroup=2 and rightGroup=5. The old 2f
+            // weightSum starved the right group, hiding its five controls.
+            weightSum = 7f
             // Always occupy the full available player width, including landscape.
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50))
         }
