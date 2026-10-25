@@ -371,7 +371,7 @@ class NativeVideoPlayerActivity : Activity() {
         speedButton = compactTool("⏱") { showSpeedPicker() }.apply {
             contentDescription = "Playback speed menu"
             background = toolBackground()
-            elevation = dp(4).toFloat()
+            elevation = dp(5).toFloat()
             setTextColor(accentColor)
             minWidth = dp(48)
             textSize = 23f
@@ -390,7 +390,7 @@ class NativeVideoPlayerActivity : Activity() {
         shareButton = compactTool("↗") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
             background = toolBackground()
-            elevation = dp(4).toFloat()
+            elevation = dp(5).toFloat()
             setTextColor(accentColor)
             minWidth = dp(48)
             textSize = 26f
@@ -416,7 +416,8 @@ class NativeVideoPlayerActivity : Activity() {
             layoutParams = LinearLayout.LayoutParams(LinearLayout.LayoutParams.MATCH_PARENT, dp(50))
         }
         fun makeIcon(icon: Int, action: () -> Unit): ImageButton = iconButton(icon, action).apply {
-            background = null
+            background = toolBackground()
+            elevation = dp(5).toFloat()
             setColorFilter(accentColor)
             setPadding(dp(5), dp(5), dp(5), dp(5))
         }
@@ -429,9 +430,9 @@ class NativeVideoPlayerActivity : Activity() {
         }
         fun skipButton(reverse: Boolean): View {
             val button = SkipButtonView(this, reverse)
-            // Icon-only control: do not draw a decorative square behind the glyph.
-            button.background = null
-            button.elevation = 0f
+            // Circular solid theme surface keeps the skip glyph visible on any video frame.
+            button.background = toolBackground()
+            button.elevation = dp(5).toFloat()
             button.contentDescription = if (reverse) "Rewind 15 seconds" else "Forward 15 seconds"
             button.isClickable = true
             button.isFocusable = true
@@ -452,14 +453,14 @@ class NativeVideoPlayerActivity : Activity() {
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         fitButton = ThemeIconView(this, "fit").apply {
-            background = null
-            elevation = 0f
+            background = toolBackground()
+            elevation = dp(5).toFloat()
             contentDescription = "Cycle Fit, Zoom and Fill modes"
             setOnClickListener { toggleFit() }
         }
         rotateButton = ThemeIconView(this, "rotate").apply {
-            background = null
-            elevation = 0f
+            background = toolBackground()
+            elevation = dp(5).toFloat()
             contentDescription = "Rotate screen"
             setOnClickListener { toggleOrientation(); showControls() }
         }
@@ -485,8 +486,8 @@ class NativeVideoPlayerActivity : Activity() {
         rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         lockButton = ThemeIconView(this, "lock").apply {
-            background = null
-            elevation = 0f
+            background = toolBackground()
+            elevation = dp(5).toFloat()
             contentDescription = "Lock video controls"
             setOnClickListener {
                 locked = !locked
@@ -755,18 +756,18 @@ class NativeVideoPlayerActivity : Activity() {
     private fun panelBackground() = controlDockBackground()
     private fun toolBackground() = GradientDrawable(
         GradientDrawable.Orientation.TOP_BOTTOM,
-        intArrayOf(blendColor(Color.rgb(50, 53, 68), accentColor, 0.18f),
-                   Color.rgb(16, 18, 28))
+        intArrayOf(blendColor(Color.rgb(42, 46, 60), accentColor, 0.42f),
+                   blendColor(Color.rgb(9, 12, 22), accentColor, 0.20f))
     ).apply {
-        cornerRadius = dp(10).toFloat()
-        setStroke(dp(1), blendColor(Color.rgb(95, 98, 115), accentColor, 0.76f))
+        shape = GradientDrawable.OVAL
+        setStroke(dp(1.5f).toInt().coerceAtLeast(1), blendColor(Color.WHITE, accentColor, 0.72f))
     }
     private fun primaryToolBackground() = GradientDrawable(
         GradientDrawable.Orientation.TOP_BOTTOM,
         intArrayOf(blendColor(Color.WHITE, accentColor, 0.88f),
                    blendColor(Color.BLACK, accentColor, 0.72f))
     ).apply {
-        cornerRadius = dp(13).toFloat()
+        shape = GradientDrawable.OVAL
         setStroke(dp(2), blendColor(Color.WHITE, accentColor, 0.82f))
     }
 
