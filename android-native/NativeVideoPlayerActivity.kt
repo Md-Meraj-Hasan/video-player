@@ -448,9 +448,9 @@ class NativeVideoPlayerActivity : Activity() {
             return button
         }
         val landscapeControls = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        // Portrait needs a compact row so all controls fit on first launch;
-        // otherwise the fixed center Play button can overlap the Next control.
-        val smallControl = if (landscapeControls) dp(48) else dp(34)
+        // Larger controls in portrait, with the remaining width distributed
+        // evenly around fixed-size circular buttons.
+        val smallControl = if (landscapeControls) dp(48) else dp(42)
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
@@ -474,9 +474,7 @@ class NativeVideoPlayerActivity : Activity() {
             } ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
         leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
-        middle.addView(leftGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
-            if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
-        })
+        middle.addView(leftGroup, LinearLayout.LayoutParams(0, smallControl, 2f))
 
         val rightGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; tag = "meraj-right-control-group" }
         val nextButton = makeIcon(android.R.drawable.ic_media_next) {
@@ -511,26 +509,27 @@ class NativeVideoPlayerActivity : Activity() {
         }
         rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
-        middle.addView(rightGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
-            if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
-        })
+        middle.addView(rightGroup, LinearLayout.LayoutParams(0, smallControl, 5f))
 
-        if (landscapeControls) {
-            // Landscape: spread every icon evenly across the available width on
-            // each side of the fixed, centered Play/Pause button.
-            fun distribute(group: LinearLayout) {
-                group.gravity = Gravity.CENTER
-                for (i in 0 until group.childCount) {
-                    val child = group.getChildAt(i)
-                    child.layoutParams = LinearLayout.LayoutParams(0, smallControl, 1f).apply {
-                        leftMargin = dp(2)
-                        rightMargin = dp(2)
-                    }
-                }
+        // Keep every control circular and fixed-size, but use weighted spacer
+        // views to spread the controls across the full available row width.
+        fun distribute(group: LinearLayout) {
+            val children = (0 until group.childCount).map { group.getChildAt(it) }
+            group.removeAllViews()
+            group.gravity = Gravity.CENTER_VERTICAL
+            fun addSpacer() {
+                group.addView(View(this), LinearLayout.LayoutParams(0, 1, 1f))
             }
-            distribute(leftGroup)
-            distribute(rightGroup)
+            addSpacer()
+            children.forEachIndexed { index, child ->
+                child.layoutParams = LinearLayout.LayoutParams(smallControl, smallControl)
+                group.addView(child)
+                if (index < children.lastIndex) addSpacer()
+            }
+            addSpacer()
         }
+        distribute(leftGroup)
+        distribute(rightGroup)
 
         playButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_play)
