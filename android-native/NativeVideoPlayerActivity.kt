@@ -37,7 +37,6 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.AspectRatioFrameLayout
-import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.Locale
@@ -58,8 +57,6 @@ class NativeVideoPlayerActivity : Activity() {
     private lateinit var rotateButton: View
     private lateinit var lockButton: View
     private lateinit var shareButton: TextView
-    private lateinit var subtitleButton: TextView
-    private var subtitlesEnabled = true
     private lateinit var volumeButton: TextView
     private lateinit var titleLabel: TextView
     private lateinit var scaleDetector: ScaleGestureDetector
@@ -93,8 +90,8 @@ class NativeVideoPlayerActivity : Activity() {
     private var activeSideGesture = 0 // 0=none, 1=brightness, 2=volume
     private var sideGestureAdjusted = false
     private val handler = Handler(Looper.getMainLooper())
-    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; updateSubtitlePosition() } }
-    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; updateSubtitlePosition() } }
+    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
+    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
     private val progress = object : Runnable {
         override fun run() {
             val p = controller
@@ -140,24 +137,10 @@ class NativeVideoPlayerActivity : Activity() {
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setKeepContentOnPlayerReset(true)
         }
-        // Force app-controlled caption styling: embedded subtitle styles can otherwise
-        // override the theme background or place text too close to the bottom edge.
-        playerView.subtitleView?.apply {
-            setApplyEmbeddedStyles(false)
-            setApplyEmbeddedFontSizes(false)
-            setStyle(CaptionStyleCompat(
-                Color.WHITE,
-                Color.TRANSPARENT,
-                Color.TRANSPARENT,
-                CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-                Color.BLACK,
-                Typeface.DEFAULT_BOLD
-            ))
-            setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-            setBottomPaddingFraction(0.18f)
-        }
+        // Subtitle block intentionally removed from the video UI.
+        // Keep Media3 playback intact but never render subtitle cues over the video.
+        playerView.subtitleView?.visibility = View.GONE
         root.addView(playerView, FrameLayout.LayoutParams(-1, -1))
-        playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateSubtitlePosition() }
         gestureIndicator = View(this).apply {
             background = GradientDrawable().apply {
                 setColor(accentColor)
@@ -296,6 +279,11 @@ class NativeVideoPlayerActivity : Activity() {
             try {
                 val c = future.get()
                 controller = c
+                runCatching {
+                    c.trackSelectionParameters = c.trackSelectionParameters.buildUpon()
+                        .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, true)
+                        .build()
+                }
                 playerView.player = c
                 snapshotQueue(c)
                 val uri = videoUri ?: return@addListener
@@ -362,87 +350,6 @@ class NativeVideoPlayerActivity : Activity() {
         }, com.google.common.util.concurrent.MoreExecutors.directExecutor())
     }
 
-    private fun updateSubtitlePosition() {
-        val subtitleView = playerView.subtitleView ?: return
-        // SubtitleView can be smaller than PlayerView when the video is letterboxed.
-        // Measure the actual subtitle surface and controls in screen coordinates so the
-        // calculation still works in portrait, landscape, and after a rotation.
-        val subtitleHeight = subtitleView.height
-        if (subtitleHeight <= 0) {
-            subtitleView.post { updateSubtitlePosition() }
-            return
-        }
-
-        val controlsVisible = controls.visibility == View.VISIBLE
-        val landscape = resources.configuration.orientation ==
-            android.content.res.Configuration.ORIENTATION_LANDSCAPE
-
-        val subtitleLocation = IntArray(2)
-        val controlsLocation = IntArray(2)
-        subtitleView.getLocationOnScreen(subtitleLocation)
-        controls.getLocationOnScreen(controlsLocation)
-
-        val subtitleBottomOnScreen = subtitleLocation[1] + subtitleHeight
-        val controlsTopOnScreen = controlsLocation[1]
-        val hasMeasuredControls = controls.height > 0 && controlsTopOnScreen > 0
-
-        val bottomClearancePx = when {
-            controlsVisible && hasMeasuredControls &&
-                controlsTopOnScreen < subtitleBottomOnScreen -> {
-                // The subtitle surface may not end at the screen edge. Reserve the real
-                // overlap between its bottom and the top of the complete control strip.
-                (subtitleBottomOnScreen - controlsTopOnScreen +
-                    dp(if (landscape) 24 else 28)).coerceAtLeast(dp(56))
-            }
-            controlsVisible -> dp(if (landscape) 132 else 156)
-            else -> dp(24)
-        }
-
-        // Do not cap at 42%: that cap can leave long/multi-line captions underneath
-        // the controls on tall portrait screens. Use SubtitleView's own measured height.
-        val paddingFraction = (bottomClearancePx.toFloat() / subtitleHeight.toFloat())
-            .coerceIn(0.06f, 0.78f)
-
-        subtitleView.setApplyEmbeddedStyles(false)
-        subtitleView.setApplyEmbeddedFontSizes(false)
-        subtitleView.setStyle(CaptionStyleCompat(
-            Color.WHITE,
-            Color.TRANSPARENT,
-            Color.TRANSPARENT,
-            CaptionStyleCompat.EDGE_TYPE_OUTLINE,
-            Color.BLACK,
-            Typeface.DEFAULT_BOLD
-        ))
-        subtitleView.setBottomPaddingFraction(paddingFraction)
-        subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, when {
-            subtitleHeight < dp(360) -> 18f
-            subtitleHeight < dp(520) -> 20f
-            else -> 22f
-        })
-        subtitleView.invalidate()
-    }
-
-    private fun toggleSubtitles() {
-        val player = controller
-        if (player == null) {
-            Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
-            return
-        }
-        subtitlesEnabled = !subtitlesEnabled
-        val params = player.trackSelectionParameters.buildUpon()
-            .setTrackTypeDisabled(C.TRACK_TYPE_TEXT, !subtitlesEnabled)
-            .build()
-        player.trackSelectionParameters = params
-        subtitleButton.text = if (subtitlesEnabled) "CC" else "CC×"
-        subtitleButton.setTextColor(if (subtitlesEnabled) Color.BLACK else Color.WHITE)
-        subtitleButton.background = GradientDrawable().apply {
-            setColor(if (subtitlesEnabled) accentColor else Color.rgb(65, 65, 75))
-            cornerRadius = dp(8).toFloat()
-        }
-        subtitleButton.contentDescription = if (subtitlesEnabled) "Subtitles on; tap to turn off" else "Subtitles off; tap to turn on"
-        showControls()
-    }
-
     private fun buildControls() {
         controls = LinearLayout(this).apply {
             orientation = LinearLayout.VERTICAL
@@ -485,25 +392,6 @@ class NativeVideoPlayerActivity : Activity() {
             isClickable = true
             isFocusable = true
         }
-        // CC button toggles Media3 text tracks on/off; its solid accent styling follows the theme.
-        subtitleButton = compactTool("CC") { toggleSubtitles() }.apply {
-            contentDescription = "Turn subtitles off or on"
-            textSize = 14f
-            typeface = Typeface.DEFAULT_BOLD
-            setTextColor(Color.BLACK)
-            background = GradientDrawable().apply {
-                setColor(accentColor)
-                cornerRadius = dp(8).toFloat()
-            }
-            minWidth = dp(42)
-            minHeight = dp(36)
-            setPadding(dp(8), dp(4), dp(8), dp(4))
-            isClickable = true
-            isFocusable = true
-        }
-        top.addView(subtitleButton, LinearLayout.LayoutParams(-2, dp(36)).apply {
-            leftMargin = dp(4); rightMargin = dp(6)
-        })
         top.addView(shareButton, LinearLayout.LayoutParams(-2, dp(48)))
         topBar = top
         top.background = null
@@ -654,8 +542,6 @@ class NativeVideoPlayerActivity : Activity() {
         controls.layoutParams = controlsParams
         controls.isFocusable = false
         root.addView(controls, controlsParams)
-        controls.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateSubtitlePosition() }
-        root.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateSubtitlePosition() }
         controls.setOnClickListener { showControls() }
     }
 
@@ -913,17 +799,12 @@ class NativeVideoPlayerActivity : Activity() {
                 controls.visibility = View.GONE
                 topBar.visibility = View.GONE
                 handler.removeCallbacks(hideControls)
-                updateSubtitlePosition()
-                root.post { updateSubtitlePosition() }
             }
         } else showControls()
     }
     private fun showControls() {
         controls.visibility = View.VISIBLE
         topBar.visibility = View.VISIBLE
-        updateSubtitlePosition()
-        // Run again after Android has laid out the newly visible control strip.
-        root.post { updateSubtitlePosition() }
         handler.removeCallbacks(hideControls)
         if (!locked) handler.postDelayed(hideControls, 5000)
     }

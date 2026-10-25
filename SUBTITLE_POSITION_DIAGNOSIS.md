@@ -1,19 +1,16 @@
-# Subtitle positioning diagnosis and fix
+# Nice Multimedia — Subtitle Block Removed
 
-## Findings from the supplied build logs
-- GitHub Actions reports `BUILD SUCCESSFUL` and verifies local web assets. This confirms compilation and packaging, not subtitle placement on a real device.
-- The native player is generated from `android-native/NativeVideoPlayerActivity.kt` by `scripts/integrate-native-media.cjs`.
-- The prior position calculation used `playerView.height` as the fraction denominator, although Media3's `SubtitleView` can have a different measured height when the video is letterboxed.
-- The prior fraction was capped at `0.42`, which could prevent enough upward clearance in some portrait/multi-line subtitle cases.
-- Control coordinates were read relative to their parent rather than measured against the subtitle surface in screen coordinates.
+## What changed
+- Removed the CC button from the native video player's top bar.
+- Removed subtitle positioning/styling and layout-listener logic.
+- Set Media3 PlayerView's SubtitleView to GONE so subtitle cues cannot overlay the video.
+- Disabled Media3 text tracks when the native MediaController connects.
+- Kept the Media3 ExoPlayer playback, seek controls, theme, and other player tools intact.
 
-## Change in this package
-`android-native/NativeVideoPlayerActivity.kt`
-- Calculates clearance using the measured `SubtitleView` height.
-- Measures subtitle surface and controls in screen coordinates.
-- Raises the maximum bottom padding fraction from 0.42 to 0.78.
-- Recalculates after controls are shown/hidden and after the next layout pass.
-- Keeps Media3 ExoPlayer playback and the CC track toggle.
+## Files
+- `android-native/NativeVideoPlayerActivity.kt` — native subtitle block removed.
+- `SUBTITLE_POSITION_DIAGNOSIS.md` — replaced by this note.
 
-## Important validation status
-The supplied GitHub Actions log shows a successful APK build for the commit used in that run. This modified source package has not yet been built or tested on a physical Android device. Subtitle files that explicitly specify their own cue position may still need separate handling.
+## Validation
+- ZIP structure is checked for integrity.
+- This source edit has not been compiled by Android Gradle or tested on a physical device yet.
