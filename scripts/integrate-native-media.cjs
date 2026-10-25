@@ -168,4 +168,58 @@ if (!xml.includes('MerajPlaybackService')) {
 }
 fs.writeFileSync(manifest, xml);
 
-console.log(`Native Media3 audio service/plugin and direct-URI video activity copied and registered in ${mainActivity}; media permissions and ExoPlayer/session/UI dependencies configured.`);
+
+// Nice Multimedia branding: stable app label, upgraded APK version, and custom launcher icon.
+const appName = 'Nice Multimedia';
+const valuesDir = path.join(appRoot, 'src', 'main', 'res', 'values');
+fs.mkdirSync(valuesDir, { recursive: true });
+const stringsFile = path.join(valuesDir, 'strings.xml');
+let stringsXml = fs.existsSync(stringsFile) ? fs.readFileSync(stringsFile, 'utf8') : '<?xml version="1.0" encoding="utf-8"?><resources></resources>';
+if (/<string\s+name="app_name"[^>]*>.*?<\/string>/s.test(stringsXml)) {
+  stringsXml = stringsXml.replace(/<string\s+name="app_name"[^>]*>.*?<\/string>/s, `<string name="app_name">${appName}</string>`);
+} else {
+  stringsXml = stringsXml.replace('</resources>', `    <string name="app_name">${appName}</string>\n</resources>`);
+}
+fs.writeFileSync(stringsFile, stringsXml);
+
+// Set APK versionCode/versionName so Android recognizes this as an upgrade.
+let versionGradle = fs.readFileSync(appGradle, 'utf8');
+if (/versionCode\s+\d+/.test(versionGradle)) versionGradle = versionGradle.replace(/versionCode\s+\d+/, 'versionCode 2');
+else if (/versionCode\s*=\s*\d+/.test(versionGradle)) versionGradle = versionGradle.replace(/versionCode\s*=\s*\d+/, 'versionCode = 2');
+if (/versionName\s+["'][^"']+["']/.test(versionGradle)) versionGradle = versionGradle.replace(/versionName\s+["'][^"']+["']/, 'versionName "1.1.0"');
+else if (/versionName\s*=\s*["'][^"']+["']/.test(versionGradle)) versionGradle = versionGradle.replace(/versionName\s*=\s*["'][^"']+["']/, 'versionName = "1.1.0"');
+fs.writeFileSync(appGradle, versionGradle);
+
+// Copy custom Nice Multimedia launcher icon at all standard Android densities.
+const brandingRoot = path.join(root, 'android-branding');
+const resRoot = path.join(appRoot, 'src', 'main', 'res');
+for (const density of ['mdpi', 'hdpi', 'xhdpi', 'xxhdpi', 'xxxhdpi']) {
+  const target = path.join(resRoot, `mipmap-${density}`);
+  fs.mkdirSync(target, { recursive: true });
+  const icon = path.join(brandingRoot, density, 'ic_launcher.png');
+  if (fs.existsSync(icon)) fs.copyFileSync(icon, path.join(target, 'ic_launcher.png'));
+}
+const baseMipmap = path.join(resRoot, 'mipmap');
+fs.mkdirSync(baseMipmap, { recursive: true });
+if (fs.existsSync(path.join(brandingRoot, 'ic_launcher.png'))) {
+  fs.copyFileSync(path.join(brandingRoot, 'ic_launcher.png'), path.join(baseMipmap, 'ic_launcher.png'));
+}
+const adaptiveDir = path.join(resRoot, 'mipmap-anydpi-v26');
+fs.mkdirSync(adaptiveDir, { recursive: true });
+fs.writeFileSync(path.join(adaptiveDir, 'ic_launcher.xml'), `<?xml version="1.0" encoding="utf-8"?>\n<adaptive-icon xmlns:android="http://schemas.android.com/apk/res/android">\n    <background android:drawable="@color/nice_multimedia_icon_background" />\n    <foreground android:drawable="@drawable/nice_multimedia_icon_foreground" />\n</adaptive-icon>\n`);
+const drawableDir = path.join(resRoot, 'drawable');
+fs.mkdirSync(drawableDir, { recursive: true });
+const foreground = path.join(brandingRoot, 'ic_launcher_foreground.png');
+if (fs.existsSync(foreground)) fs.copyFileSync(foreground, path.join(drawableDir, 'nice_multimedia_icon_foreground.png'));
+const colorsFile = path.join(valuesDir, 'colors.xml');
+let colorsXml = fs.existsSync(colorsFile) ? fs.readFileSync(colorsFile, 'utf8') : '<?xml version="1.0" encoding="utf-8"?><resources></resources>';
+if (!/<color\s+name="nice_multimedia_icon_background"/.test(colorsXml)) colorsXml = colorsXml.replace('</resources>', '    <color name="nice_multimedia_icon_background">#111326</color>\n</resources>');
+fs.writeFileSync(colorsFile, colorsXml);
+xml = fs.readFileSync(manifest, 'utf8');
+xml = xml.replace(/android:label="[^"]*"/, 'android:label="@string/app_name"');
+if (!/android:icon="[^"]*"/.test(xml)) xml = xml.replace(/<application\b/, '<application android:icon="@mipmap/ic_launcher"');
+else xml = xml.replace(/android:icon="[^"]*"/, 'android:icon="@mipmap/ic_launcher"');
+xml = xml.replace(/android:roundIcon="[^"]*"/, 'android:roundIcon="@mipmap/ic_launcher"');
+fs.writeFileSync(manifest, xml);
+
+console.log(`Nice Multimedia v1.1.0 branding applied; Media3 audio service/plugin and direct-URI video activity copied and registered in ${mainActivity}.`);

@@ -226,3 +226,23 @@ body.video-mode #videoPlayer.page.active { display:flex !important; flex-directi
 body.video-mode .app { display:flex !important; flex-direction:column !important; height:100dvh !important; min-height:0 !important; max-height:100dvh !important; overflow:hidden !important; }
 body.video-mode main { min-height:0 !important; }
 body.video-mode #pages { min-height:0 !important; }
+
+
+/* Premium palette cycle shared by audio and video interfaces. */
+:root[data-theme="silver"]{--bg:#20242b;--panel:#2b3039;--panel2:#383f49;--purple:#d5dbe5;--pink:#f4f6fa;--accent:#c7ced8;--accent2:#f1f4f8;--accent-soft:#3b424d;--accent-panel:#414954;--accent-border:#8793a3;--control-fill:#d8dee8;--control-text:#20242b;--top-bg:#20242bef;--nav-bg:#252a32f7}
+:root[data-theme="graphite"]{--bg:#101318;--panel:#1b2027;--panel2:#282e37;--purple:#aeb7c4;--pink:#e3e8ef;--accent:#aeb7c4;--accent2:#eef2f7;--accent-soft:#252c35;--accent-panel:#303844;--accent-border:#657181;--control-fill:#c4ccd7;--control-text:#101318;--top-bg:#101318ef;--nav-bg:#171b21f7}
+:root[data-theme="blue"]{--bg:#08172b;--panel:#10243e;--panel2:#173354;--purple:#60a5fa;--pink:#93c5fd;--accent:#3b82f6;--accent2:#93c5fd;--accent-soft:#102b4b;--accent-panel:#173b61;--accent-border:#3479c9;--control-fill:#3b82f6;--control-text:#fff;--top-bg:#08172bef;--nav-bg:#0b1d34f7}
+:root[data-theme="ocean"]{--bg:#071c28;--panel:#102a38;--panel2:#173949;--purple:#38bdf8;--pink:#67e8f9;--accent:#06b6d4;--accent2:#67e8f9;--accent-soft:#103747;--accent-panel:#174657;--accent-border:#168ba5;--control-fill:#06b6d4;--control-text:#06202a;--top-bg:#071c28ef;--nav-bg:#0b2633f7}
+:root[data-theme="sunset"]{--bg:#27121d;--panel:#351a29;--panel2:#492236;--purple:#fb7185;--pink:#fdba74;--accent:#f43f5e;--accent2:#fdba74;--accent-soft:#482034;--accent-panel:#54253b;--accent-border:#b94a68;--control-fill:#f43f5e;--control-text:#fff;--top-bg:#27121def;--nav-bg:#301725f7}
+:root[data-theme="gold"]{--bg:#211a0b;--panel:#302713;--panel2:#43361a;--purple:#eab308;--pink:#fde68a;--accent:#d4a017;--accent2:#fde68a;--accent-soft:#403313;--accent-panel:#514018;--accent-border:#a98525;--control-fill:#eab308;--control-text:#211a0b;--top-bg:#211a0bef;--nav-bg:#2a220ff7}
+:root[data-theme="ice"]{--bg:#10232b;--panel:#18323c;--panel2:#23434f;--purple:#67e8f9;--pink:#bfdbfe;--accent:#22d3ee;--accent2:#bfdbfe;--accent-soft:#173943;--accent-panel:#204653;--accent-border:#3b9db1;--control-fill:#22d3ee;--control-text:#10232b;--top-bg:#10232bef;--nav-bg:#142c35f7}
+.themebtn{font-size:24px;min-width:42px;width:42px;padding:0;border:2px solid var(--accent-border);box-shadow:0 0 14px color-mix(in srgb,var(--accent) 22%,transparent)}
+.themebtn small{display:none!important}
+#folderList{display:block;min-width:0}.audio-folder-strip{display:flex;gap:9px;overflow-x:auto;overscroll-behavior-x:contain;padding:8px 1px 13px;scrollbar-width:thin;scroll-snap-type:x proximity}.audio-folder-chip{flex:0 0 auto;max-width:78vw;display:flex;align-items:center;gap:7px;padding:11px 14px;border:1px solid var(--accent-border);border-radius:999px;background:var(--panel);color:var(--text);font-weight:750;scroll-snap-align:start}.audio-folder-chip small{padding:3px 7px;border-radius:999px;background:var(--accent-soft);color:var(--accent2);font-size:10px}.audio-folder-chip.active{background:var(--accent);border-color:var(--accent2);color:var(--control-text);box-shadow:0 0 16px color-mix(in srgb,var(--accent) 25%,transparent)}.audio-folder-chip.active small{background:#0002;color:inherit}.audio-folder-content{padding-top:4px}
+
+
+/* Audio folders: keep folder chips in a horizontal strip; only the selected song list scrolls vertically. */
+#folders #folderList.folder-browser{display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow:hidden;gap:0;padding:0;}
+#folders .audio-folder-strip{flex:0 0 auto;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;white-space:nowrap;touch-action:pan-x;overscroll-behavior-y:contain;}
+#folders .audio-folder-content{display:flex;flex-direction:column;flex:1 1 0;min-height:0;overflow-y:auto;overflow-x:hidden;overscroll-behavior:contain;touch-action:pan-y;padding-bottom:12px;}
+#folders .audio-folder-content .song{flex:0 0 auto;}

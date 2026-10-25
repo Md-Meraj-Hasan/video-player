@@ -343,34 +343,24 @@ function init() {
 
   // Rescan Buttons
   $('rescan-library-top')?.addEventListener('click', scanDeviceVideos);
-  // Video theme picker shares the same saved theme as the audio player.
+  // Tap the palette icon to cycle solid premium themes; selection syncs with audio.
   const videoThemeToggle = $('video-theme-toggle');
-  const videoThemePopover = $('video-theme-popover');
-  const applyVideoTheme = (theme) => {
-    if (!['default', 'green', 'red'].includes(theme)) theme = 'default';
+  const videoThemeNames = ['default','green','red','silver','graphite','blue','ocean','sunset','gold','ice'];
+  const applyVideoTheme = (theme, save=true) => {
+    if (!videoThemeNames.includes(theme)) theme = 'default';
     document.documentElement.dataset.videoTheme = theme;
-    try { localStorage.setItem('merajMusicTheme', theme); } catch (_) {}
-    videoThemePopover?.querySelectorAll('[data-video-theme]').forEach(b => b.classList.toggle('selected', b.dataset.videoTheme === theme));
+    if (videoThemeToggle) { videoThemeToggle.dataset.theme = theme; videoThemeToggle.setAttribute('aria-label', 'Color theme: '+theme+'; tap to change'); videoThemeToggle.title = 'Theme: '+theme+' · tap to change'; }
+    if (save) { try { localStorage.setItem('merajMusicTheme', theme); } catch (_) {} }
   };
   let savedVideoTheme = 'default';
   try { savedVideoTheme = localStorage.getItem('merajMusicTheme') || 'default'; } catch (_) {}
-  applyVideoTheme(savedVideoTheme);
+  applyVideoTheme(savedVideoTheme, false);
   videoThemeToggle?.addEventListener('click', (e) => {
-    e.stopPropagation(); videoThemePopover?.classList.toggle('hidden');
+    e.preventDefault(); e.stopPropagation();
+    const current = document.documentElement.dataset.videoTheme || 'default';
+    applyVideoTheme(videoThemeNames[(videoThemeNames.indexOf(current)+1)%videoThemeNames.length]);
   });
-  videoThemePopover?.addEventListener('click', (e) => {
-    const option = e.target.closest('[data-video-theme]'); if (!option) return;
-    applyVideoTheme(option.dataset.videoTheme); videoThemePopover.classList.add('hidden');
-  });
-  // Close the theme menu only when the tap is outside BOTH the menu and
-  // the entire toggle button. Checking e.target !== button alone closes it
-  // immediately when the user taps the SVG icon inside the button on Android.
-  document.addEventListener('click', (e) => {
-    const target = e.target;
-    if (!videoThemePopover?.contains(target) && !videoThemeToggle?.contains(target)) {
-      videoThemePopover?.classList.add('hidden');
-    }
-  });
+  window.addEventListener('storage', (e) => { if (e.key === 'merajMusicTheme' && e.newValue) applyVideoTheme(e.newValue, false); });
   $('bottom-rescan')?.addEventListener('click', scanDeviceVideos);
   $('choose-video')?.addEventListener('click', scanDeviceVideos);
 
