@@ -364,27 +364,44 @@ class NativeVideoPlayerActivity : Activity() {
 
     private fun updateSubtitlePosition() {
         val subtitleView = playerView.subtitleView ?: return
-        val height = playerView.height
-        if (height <= 0) return
-
-        // SubtitleView belongs to Media3's PlayerView and fills the video surface.
-        // Reserve the actual on-screen area occupied by the native controls instead
-        // of relying on a fixed percentage (which failed across portrait/landscape).
-        val controlsVisible = controls.visibility == View.VISIBLE
-        val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-        val controlsTop = controls.top
-        val measuredControls = controls.height
-        val bottomClearancePx = if (controlsVisible && measuredControls > 0 && controlsTop > 0) {
-            // Move the last subtitle line above the whole control strip plus a safety gap.
-            (height - controlsTop + dp(if (landscape) 18 else 22)).coerceAtLeast(dp(52))
-        } else if (controlsVisible) {
-            // First layout pass: controls have not been measured yet. Use a safe fallback;
-            // the layout-change listener below recalculates with real dimensions.
-            dp(if (landscape) 112 else 142)
-        } else {
-            dp(18)
+        // SubtitleView can be smaller than PlayerView when the video is letterboxed.
+        // Measure the actual subtitle surface and controls in screen coordinates so the
+        // calculation still works in portrait, landscape, and after a rotation.
+        val subtitleHeight = subtitleView.height
+        if (subtitleHeight <= 0) {
+            subtitleView.post { updateSubtitlePosition() }
+            return
         }
-        val paddingFraction = (bottomClearancePx.toFloat() / height.toFloat()).coerceIn(0.04f, 0.42f)
+
+        val controlsVisible = controls.visibility == View.VISIBLE
+        val landscape = resources.configuration.orientation ==
+            android.content.res.Configuration.ORIENTATION_LANDSCAPE
+
+        val subtitleLocation = IntArray(2)
+        val controlsLocation = IntArray(2)
+        subtitleView.getLocationOnScreen(subtitleLocation)
+        controls.getLocationOnScreen(controlsLocation)
+
+        val subtitleBottomOnScreen = subtitleLocation[1] + subtitleHeight
+        val controlsTopOnScreen = controlsLocation[1]
+        val hasMeasuredControls = controls.height > 0 && controlsTopOnScreen > 0
+
+        val bottomClearancePx = when {
+            controlsVisible && hasMeasuredControls &&
+                controlsTopOnScreen < subtitleBottomOnScreen -> {
+                // The subtitle surface may not end at the screen edge. Reserve the real
+                // overlap between its bottom and the top of the complete control strip.
+                (subtitleBottomOnScreen - controlsTopOnScreen +
+                    dp(if (landscape) 24 else 28)).coerceAtLeast(dp(56))
+            }
+            controlsVisible -> dp(if (landscape) 132 else 156)
+            else -> dp(24)
+        }
+
+        // Do not cap at 42%: that cap can leave long/multi-line captions underneath
+        // the controls on tall portrait screens. Use SubtitleView's own measured height.
+        val paddingFraction = (bottomClearancePx.toFloat() / subtitleHeight.toFloat())
+            .coerceIn(0.06f, 0.78f)
 
         subtitleView.setApplyEmbeddedStyles(false)
         subtitleView.setApplyEmbeddedFontSizes(false)
@@ -398,8 +415,8 @@ class NativeVideoPlayerActivity : Activity() {
         ))
         subtitleView.setBottomPaddingFraction(paddingFraction)
         subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, when {
-            height < dp(360) -> 18f
-            height < dp(520) -> 20f
+            subtitleHeight < dp(360) -> 18f
+            subtitleHeight < dp(520) -> 20f
             else -> 22f
         })
         subtitleView.invalidate()
@@ -892,13 +909,21 @@ class NativeVideoPlayerActivity : Activity() {
     }
     private fun toggleControls() {
         if (controls.visibility == View.VISIBLE || topBar.visibility == View.VISIBLE) {
-            if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; handler.removeCallbacks(hideControls); updateSubtitlePosition() }
+            if (!locked) {
+                controls.visibility = View.GONE
+                topBar.visibility = View.GONE
+                handler.removeCallbacks(hideControls)
+                updateSubtitlePosition()
+                root.post { updateSubtitlePosition() }
+            }
         } else showControls()
     }
     private fun showControls() {
         controls.visibility = View.VISIBLE
         topBar.visibility = View.VISIBLE
         updateSubtitlePosition()
+        // Run again after Android has laid out the newly visible control strip.
+        root.post { updateSubtitlePosition() }
         handler.removeCallbacks(hideControls)
         if (!locked) handler.postDelayed(hideControls, 5000)
     }
