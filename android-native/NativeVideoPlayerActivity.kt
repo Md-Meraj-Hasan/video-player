@@ -37,6 +37,7 @@ import androidx.media3.common.Player
 import androidx.media3.session.MediaController
 import androidx.media3.session.SessionToken
 import androidx.media3.ui.AspectRatioFrameLayout
+import androidx.media3.ui.CaptionStyleCompat
 import androidx.media3.ui.PlayerView
 import com.google.common.util.concurrent.ListenableFuture
 import java.util.Locale
@@ -139,12 +140,21 @@ class NativeVideoPlayerActivity : Activity() {
             setShowBuffering(PlayerView.SHOW_BUFFERING_WHEN_PLAYING)
             setKeepContentOnPlayerReset(true)
         }
-        // Auto-lift captions into the visible video area. The padding is recalculated
-        // for portrait/landscape and again when controls appear/disappear, so captions
-        // do not sit underneath the bottom seek bar or get clipped by the screen edge.
+        // Force app-controlled caption styling: embedded subtitle styles can otherwise
+        // override the theme background or place text too close to the bottom edge.
         playerView.subtitleView?.apply {
+            setApplyEmbeddedStyles(false)
+            setApplyEmbeddedFontSizes(false)
+            setStyle(CaptionStyleCompat(
+                Color.BLACK,
+                accentColor,
+                Color.TRANSPARENT,
+                CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+                Color.BLACK,
+                Typeface.DEFAULT_BOLD
+            ))
             setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, 22f)
-            setBottomPaddingFraction(0.28f)
+            setBottomPaddingFraction(0.22f)
         }
         root.addView(playerView, FrameLayout.LayoutParams(-1, -1))
         playerView.addOnLayoutChangeListener { _, _, _, _, _, _, _, _, _ -> updateSubtitlePosition() }
@@ -358,18 +368,28 @@ class NativeVideoPlayerActivity : Activity() {
         if (height <= 0) return
         val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
         val controlsVisible = controls.visibility == View.VISIBLE || topBar.visibility == View.VISIBLE
-        // A larger bottom-padding fraction moves Media3 captions upward. Increase it
-        // further on short screens and while the control strip is visible.
+
+        // Keep captions consistently ABOVE the bottom control strip. A little extra
+        // clearance is reserved while controls are visible; orientation and short
+        // displays are handled separately so the subtitle area does not get clipped.
         val paddingFraction = when {
-            landscape && height < dp(300) && controlsVisible -> 0.34f
-            landscape && controlsVisible -> 0.28f
-            landscape && height < dp(300) -> 0.24f
-            landscape -> 0.18f
-            height < dp(500) && controlsVisible -> 0.38f
-            controlsVisible -> 0.32f
-            height < dp(500) -> 0.30f
-            else -> 0.24f
+            landscape && controlsVisible -> 0.27f
+            landscape -> 0.22f
+            height < dp(500) && controlsVisible -> 0.25f
+            controlsVisible -> 0.22f
+            height < dp(500) -> 0.20f
+            else -> 0.18f
         }
+        subtitleView.setApplyEmbeddedStyles(false)
+        subtitleView.setApplyEmbeddedFontSizes(false)
+        subtitleView.setStyle(CaptionStyleCompat(
+            Color.BLACK,
+            accentColor,
+            Color.TRANSPARENT,
+            CaptionStyleCompat.EDGE_TYPE_OUTLINE,
+            Color.BLACK,
+            Typeface.DEFAULT_BOLD
+        ))
         subtitleView.setBottomPaddingFraction(paddingFraction)
         subtitleView.setFixedTextSize(TypedValue.COMPLEX_UNIT_SP, if (height < dp(360)) 20f else 22f)
         subtitleView.invalidate()
