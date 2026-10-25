@@ -355,18 +355,21 @@ class NativeVideoPlayerActivity : Activity() {
             orientation = LinearLayout.VERTICAL
             val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
             setPadding(if (landscape) 0 else dp(8), dp(2), if (landscape) 0 else dp(8), dp(4))
-            background = null
+            background = controlDockBackground()
+            elevation = dp(8).toFloat()
         }
         val top = LinearLayout(this).apply {
             gravity = Gravity.CENTER_VERTICAL
             orientation = LinearLayout.HORIZONTAL
             setPadding(dp(10), dp(4), dp(10), dp(4))
-            background = null
+            background = controlDockBackground()
+            elevation = dp(6).toFloat()
         }
         // Requested layout: speed button on the LEFT, title in the middle, share on the RIGHT.
         speedButton = compactTool("⏱") { showSpeedPicker() }.apply {
             contentDescription = "Playback speed menu"
-            background = null
+            background = toolBackground()
+            elevation = dp(4).toFloat()
             setTextColor(accentColor)
             minWidth = dp(48)
             textSize = 23f
@@ -384,7 +387,8 @@ class NativeVideoPlayerActivity : Activity() {
         top.addView(titleLabel, LinearLayout.LayoutParams(0, dp(48), 1f))
         shareButton = compactTool("↗") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
-            background = null
+            background = toolBackground()
+            elevation = dp(4).toFloat()
             setTextColor(accentColor)
             minWidth = dp(48)
             textSize = 26f
@@ -394,7 +398,8 @@ class NativeVideoPlayerActivity : Activity() {
         }
         top.addView(shareButton, LinearLayout.LayoutParams(-2, dp(48)))
         topBar = top
-        top.background = null
+        top.background = controlDockBackground()
+        top.elevation = dp(6).toFloat()
         root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
 
         // Transparent, balanced control row: previous immediately left of the centered Play/Pause,
@@ -422,6 +427,8 @@ class NativeVideoPlayerActivity : Activity() {
         }
         fun skipButton(reverse: Boolean): View {
             val button = SkipButtonView(this, reverse)
+            button.background = toolBackground()
+            button.elevation = dp(4).toFloat()
             button.contentDescription = if (reverse) "Rewind 15 seconds" else "Forward 15 seconds"
             button.isClickable = true
             button.isFocusable = true
@@ -442,10 +449,14 @@ class NativeVideoPlayerActivity : Activity() {
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         fitButton = ThemeIconView(this, "fit").apply {
+            background = toolBackground()
+            elevation = dp(4).toFloat()
             contentDescription = "Cycle Fit, Zoom and Fill modes"
             setOnClickListener { toggleFit() }
         }
         rotateButton = ThemeIconView(this, "rotate").apply {
+            background = toolBackground()
+            elevation = dp(4).toFloat()
             contentDescription = "Rotate screen"
             setOnClickListener { toggleOrientation(); showControls() }
         }
@@ -469,6 +480,8 @@ class NativeVideoPlayerActivity : Activity() {
         rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         lockButton = ThemeIconView(this, "lock").apply {
+            background = toolBackground()
+            elevation = dp(4).toFloat()
             contentDescription = "Lock video controls"
             setOnClickListener {
                 locked = !locked
@@ -494,8 +507,9 @@ class NativeVideoPlayerActivity : Activity() {
 
         playButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_play)
-            setColorFilter(accentColor)
-            background = null
+            setColorFilter(contrastTextColor(accentColor))
+            background = primaryToolBackground()
+            elevation = dp(7).toFloat()
             setPadding(dp(5), dp(5), dp(5), dp(5))
             scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
             contentDescription = "Play or pause"
@@ -508,7 +522,13 @@ class NativeVideoPlayerActivity : Activity() {
         // Volume is deliberately removed from the button row; adjust it by swiping vertically on the right half.
         volumeButton = compactTool("🔊") { showVolumePicker() }
 
-        val seekRow = LinearLayout(this).apply { gravity = Gravity.CENTER_VERTICAL; orientation = LinearLayout.HORIZONTAL }
+        val seekRow = LinearLayout(this).apply {
+            gravity = Gravity.CENTER_VERTICAL
+            orientation = LinearLayout.HORIZONTAL
+            background = controlDockBackground()
+            elevation = dp(3).toFloat()
+            setPadding(dp(8), dp(2), dp(8), dp(2))
+        }
         positionLabel = timeLabel("00:00"); seekRow.addView(positionLabel)
         seekBar = SeekBar(this).apply {
             progressTintList = android.content.res.ColorStateList.valueOf(accentColor)
@@ -698,20 +718,31 @@ class NativeVideoPlayerActivity : Activity() {
         cornerRadius = dp(5).toFloat()
     }
 
-    private fun panelBackground() = GradientDrawable().apply {
-        setColor(Color.argb(224, 5, 20, 24))
-        cornerRadius = dp(12).toFloat()
-        setStroke(dp(1), Color.argb(105, 105, 207, 197))
+    // Theme-aware 3D surfaces: controls stay legible even when the video frame
+    // contains colors similar to the active accent. The icon keeps its solid theme tint.
+    private fun controlDockBackground() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(Color.argb(248, 20, 22, 34), Color.argb(238, 5, 7, 14))
+    ).apply {
+        cornerRadius = dp(14).toFloat()
+        setStroke(dp(1), blendColor(Color.rgb(22, 24, 36), accentColor, 0.88f))
     }
-    private fun toolBackground() = GradientDrawable().apply {
-        setColor(Color.argb(225, 7, 27, 32))
-        cornerRadius = dp(9).toFloat()
-        setStroke(dp(1), Color.argb(115, 105, 207, 197))
-    }
-    private fun primaryToolBackground() = GradientDrawable().apply {
-        setColor(Color.rgb(20, 123, 112))
+    private fun panelBackground() = controlDockBackground()
+    private fun toolBackground() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(blendColor(Color.rgb(50, 53, 68), accentColor, 0.18f),
+                   Color.rgb(16, 18, 28))
+    ).apply {
         cornerRadius = dp(10).toFloat()
-        setStroke(dp(1), Color.rgb(71, 217, 200))
+        setStroke(dp(1), blendColor(Color.rgb(95, 98, 115), accentColor, 0.76f))
+    }
+    private fun primaryToolBackground() = GradientDrawable(
+        GradientDrawable.Orientation.TOP_BOTTOM,
+        intArrayOf(blendColor(Color.WHITE, accentColor, 0.88f),
+                   blendColor(Color.BLACK, accentColor, 0.72f))
+    ).apply {
+        cornerRadius = dp(13).toFloat()
+        setStroke(dp(2), blendColor(Color.WHITE, accentColor, 0.82f))
     }
 
     private fun compactTool(label: String, action: () -> Unit): TextView = TextView(this).apply {
@@ -726,7 +757,8 @@ class NativeVideoPlayerActivity : Activity() {
         setPadding(12, 12, 12, 12); setOnClickListener { action(); showControls() }
     }
     private fun iconButton(icon: Int, action: () -> Unit): ImageButton = ImageButton(this).apply {
-        setImageResource(icon); setColorFilter(accentColor); background = null
+        setImageResource(icon); setColorFilter(accentColor); background = toolBackground()
+        elevation = dp(4).toFloat()
         layoutParams = LinearLayout.LayoutParams(0, 58, 1f); setPadding(10, 10, 10, 10)
         scaleType = android.widget.ImageView.ScaleType.FIT_CENTER
         setOnClickListener { action(); showControls() }
