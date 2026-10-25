@@ -471,7 +471,9 @@ class NativeVideoPlayerActivity : Activity() {
             } ?: Toast.makeText(this, "Player is not ready yet", Toast.LENGTH_SHORT).show()
         }
         leftGroup.addView(previousButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
-        middle.addView(leftGroup, LinearLayout.LayoutParams(-2, smallControl))
+        middle.addView(leftGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
+            if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
+        })
 
         val rightGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER; tag = "meraj-right-control-group" }
         val nextButton = makeIcon(android.R.drawable.ic_media_next) {
@@ -506,7 +508,26 @@ class NativeVideoPlayerActivity : Activity() {
         }
         rightGroup.addView(lockButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
         rightGroup.addView(rotateButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 3); rightMargin = dp(if (landscapeControls) 8 else 3) })
-        middle.addView(rightGroup, LinearLayout.LayoutParams(-2, smallControl))
+        middle.addView(rightGroup, LinearLayout.LayoutParams(0, smallControl, if (landscapeControls) 1f else 0f).apply {
+            if (!landscapeControls) width = LinearLayout.LayoutParams.WRAP_CONTENT
+        })
+
+        if (landscapeControls) {
+            // Landscape: spread every icon evenly across the available width on
+            // each side of the fixed, centered Play/Pause button.
+            fun distribute(group: LinearLayout) {
+                group.gravity = Gravity.CENTER
+                for (i in 0 until group.childCount) {
+                    val child = group.getChildAt(i)
+                    child.layoutParams = LinearLayout.LayoutParams(0, smallControl, 1f).apply {
+                        leftMargin = dp(2)
+                        rightMargin = dp(2)
+                    }
+                }
+            }
+            distribute(leftGroup)
+            distribute(rightGroup)
+        }
 
         playButton = ImageButton(this).apply {
             setImageResource(android.R.drawable.ic_media_play)
