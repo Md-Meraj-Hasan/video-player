@@ -3,6 +3,10 @@ package com.meraj.mediaplayer
 import android.app.Activity
 import android.app.AlertDialog
 import android.media.AudioManager
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import android.content.ComponentName
 import android.content.Intent
 import android.content.pm.ActivityInfo
@@ -42,7 +46,7 @@ import com.google.common.util.concurrent.ListenableFuture
 import java.util.Locale
 
 /** Full-screen controls attached to the single ExoPlayer owned by MerajPlaybackService. */
-class NativeVideoPlayerActivity : Activity() {
+class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private lateinit var root: FrameLayout
     private lateinit var playerView: PlayerView
     private lateinit var controls: LinearLayout
@@ -60,6 +64,16 @@ class NativeVideoPlayerActivity : Activity() {
     private lateinit var volumeButton: TextView
     private lateinit var titleLabel: TextView
     private lateinit var scaleDetector: ScaleGestureDetector
+    // Shake-to-rotate: use the accelerometer rather than relying on orientation callbacks alone.
+    private var sensorManager: SensorManager? = null
+    private var accelerometer: Sensor? = null
+    private var lastAccelX = 0f
+    private var lastAccelY = 0f
+    private var lastAccelZ = 0f
+    private var hasLastAccel = false
+    private var lastShakeAt = 0L
+    private var shakeRotationBusy = false
+    private var shakeOrientationState = ActivityInfo.SCREEN_ORIENTATION_SENSOR
     private var pinchScale = 1f
     private var isPinching = false
     // True for the entire multi-touch sequence, even after ScaleGestureDetector ends.
@@ -115,6 +129,8 @@ class NativeVideoPlayerActivity : Activity() {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
+        accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         themeName = intent.getStringExtra(EXTRA_THEME) ?: "default"
         // Keep the native Media3 player in sync with the palette selected in the HTML library.
         // Values intentionally cover every theme offered by the audio/video library UI.
@@ -942,8 +958,102 @@ class NativeVideoPlayerActivity : Activity() {
         fitButton.invalidate()
         showControls()
     }
+    override fun onResume() {
+        super.onResume()
+        // Re-register on resume so shake detection remains reliable after returning from a chooser.
+        hasLastAccel = false
+        accelerometer?.let { sensor ->
+            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
+        }
+    }
+
+    override fun onPause() {
+        sensorManager?.unregisterListener(this)
+        hasLastAccel = false
+        super.onPause()
+    }
+
+    override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+    override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_ACCELEROMETER || event.values.size < 3) return
+        val x = event.values[0]
+        val y = event.values[1]
+        val z = event.values[2]
+        if (!hasLastAccel) {
+            lastAccelX = x; lastAccelY = y; lastAccelZ = z
+            hasLastAccel = true
+            return
+        }
+
+        // Delta acceleration catches a deliberate shake but ignores ordinary slow tilting.
+        val deltaX = x - lastAccelX
+        val deltaY = y - lastAccelY
+        val deltaZ = z - lastAccelZ
+        lastAccelX = x; lastAccelY = y; lastAccelZ = z
+        val jerk = kotlin.math.sqrt(
+            (deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ).toDouble()
+        ).toFloat()
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (jerk >= 8.5f && now - lastShakeAt >= 900L && !shakeRotationBusy) {
+            lastShakeAt = now
+            rotateAfterShake()
+        }
+    }
+
+    private fun rotateAfterShake() {
+        if (isFinishing || !::playerView.isInitialized) return
+        shakeRotationBusy = true
+
+        // A short Y-axis flip gives the video a 3D turn while the screen direction changes.
+        playerView.cameraDistance = dp(1800).toFloat()
+        playerView.animate().cancel()
+        playerView.rotationY = 0f
+        playerView.animate()
+            .rotationY(78f)
+            .setDuration(180L)
+            .withEndAction {
+                val current = resources.configuration.orientation
+                val nextOrientation = when (shakeOrientationState) {
+                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ->
+                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE ->
+                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT ->
+                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                    else -> if (
+                        current == android.content.res.Configuration.ORIENTATION_LANDSCAPE
+                    ) ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+                    else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+                }
+                shakeOrientationState = nextOrientation
+
+                // Reset the view transform before Android relays out the full-screen player.
+                playerView.rotationY = 0f
+                requestedOrientation = nextOrientation
+                root.post {
+                    playerView.rotationY = -78f
+                    playerView.animate()
+                        .rotationY(0f)
+                        .setDuration(220L)
+                        .withEndAction {
+                            shakeRotationBusy = false
+                            showControls()
+                        }
+                        .start()
+                }
+            }
+            .start()
+    }
+
     private fun toggleOrientation() {
-        requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) ActivityInfo.SCREEN_ORIENTATION_PORTRAIT else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        requestedOrientation = if (resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE) {
+            shakeOrientationState = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        } else {
+            shakeOrientationState = ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        }
         root.post {
             if (::controls.isInitialized) {
                 val landscape = resources.configuration.orientation == android.content.res.Configuration.ORIENTATION_LANDSCAPE
