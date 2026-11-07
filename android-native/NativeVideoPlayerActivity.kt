@@ -17,6 +17,10 @@ import android.graphics.Path
 import android.graphics.RectF
 import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
+import android.app.PictureInPictureParams
+import android.content.res.Configuration
+import android.os.Build
+import android.util.Rational
 import android.net.Uri
 import android.os.Bundle
 import android.os.Handler
@@ -67,13 +71,18 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     // Shake-to-rotate: use the accelerometer rather than relying on orientation callbacks alone.
     private var sensorManager: SensorManager? = null
     private var accelerometer: Sensor? = null
-    private var lastAccelX = 0f
-    private var lastAccelY = 0f
-    private var lastAccelZ = 0f
-    private var hasLastAccel = false
+    // Direction-aware shake detection uses gravity-filtered acceleration and signed
+    // angular motion from the gyroscope (when available).
+    private var gravityX = 0f
+    private var gravityY = 0f
+    private var gravityZ = 0f
     private var lastShakeAt = 0L
     private var shakeRotationBusy = false
     private var shakeOrientationState = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+    private var lastAngularZ = 0f
+    private var accumulatedAngularZ = 0f
+    private var lastSensorTimestamp = 0L
+    private var pendingShakeDirection = 0
     private var pinchScale = 1f
     private var isPinching = false
     // True for the entire multi-touch sequence, even after ScaleGestureDetector ends.
@@ -129,6 +138,9 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            setPictureInPictureParams(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build())
+        }
         sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         themeName = intent.getStringExtra(EXTRA_THEME) ?: "default"
@@ -961,89 +973,95 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     override fun onResume() {
         super.onResume()
         // Re-register on resume so shake detection remains reliable after returning from a chooser.
-        hasLastAccel = false
+        gravityX = 0f; gravityY = 0f; gravityZ = 0f
+        lastSensorTimestamp = 0L
         accelerometer?.let { sensor ->
+            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
+        }
+        sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sensor ->
             sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
         }
     }
 
     override fun onPause() {
         sensorManager?.unregisterListener(this)
-        hasLastAccel = false
         super.onPause()
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun onSensorChanged(event: SensorEvent) {
+        val now = android.os.SystemClock.elapsedRealtime()
+        if (event.sensor.type == Sensor.TYPE_GYROSCOPE && event.values.size >= 3) {
+            val dt = if (lastSensorTimestamp == 0L) 0f
+                else ((event.timestamp - lastSensorTimestamp) / 1_000_000_000f).coerceIn(0f, 0.05f)
+            lastSensorTimestamp = event.timestamp
+            // Z angular velocity is signed; positive and negative represent opposite turns.
+            lastAngularZ = event.values[2]
+            if (dt > 0f) accumulatedAngularZ += lastAngularZ * dt
+            return
+        }
         if (event.sensor.type != Sensor.TYPE_ACCELEROMETER || event.values.size < 3) return
+
         val x = event.values[0]
         val y = event.values[1]
         val z = event.values[2]
-        if (!hasLastAccel) {
-            lastAccelX = x; lastAccelY = y; lastAccelZ = z
-            hasLastAccel = true
-            return
-        }
+        val alpha = 0.82f
+        gravityX = alpha * gravityX + (1f - alpha) * x
+        gravityY = alpha * gravityY + (1f - alpha) * y
+        gravityZ = alpha * gravityZ + (1f - alpha) * z
+        val lx = x - gravityX
+        val ly = y - gravityY
+        val lz = z - gravityZ
+        val impulse = kotlin.math.sqrt((lx * lx + ly * ly + lz * lz).toDouble()).toFloat()
+        if (impulse < 6.0f || now - lastShakeAt < 850L || shakeRotationBusy) return
 
-        // Delta acceleration catches a deliberate shake but ignores ordinary slow tilting.
-        val deltaX = x - lastAccelX
-        val deltaY = y - lastAccelY
-        val deltaZ = z - lastAccelZ
-        lastAccelX = x; lastAccelY = y; lastAccelZ = z
-        val jerk = kotlin.math.sqrt(
-            (deltaX * deltaX + deltaY * deltaY + deltaZ * deltaZ).toDouble()
-        ).toFloat()
-        val now = android.os.SystemClock.elapsedRealtime()
-        if (jerk >= 8.5f && now - lastShakeAt >= 900L && !shakeRotationBusy) {
-            lastShakeAt = now
-            rotateAfterShake()
+        // Prefer the gyro-integrated angular sign. When no gyro exists, derive a
+        // signed direction from the gravity-vector movement on the phone plane.
+        val gyroDirection = when {
+            kotlin.math.abs(accumulatedAngularZ) >= 0.10f ->
+                if (accumulatedAngularZ > 0f) 1 else -1
+            kotlin.math.abs(lastAngularZ) >= 0.35f ->
+                if (lastAngularZ > 0f) 1 else -1
+            else -> 0
         }
+        val cross = gravityX * ly - gravityY * lx
+        val direction = if (gyroDirection != 0) gyroDirection else if (cross >= 0f) 1 else -1
+        accumulatedAngularZ = 0f
+        lastShakeAt = now
+        pendingShakeDirection = direction
+        rotateAfterShake(direction)
     }
 
-    private fun rotateAfterShake() {
+    private fun rotateAfterShake(direction: Int) {
         if (isFinishing || !::playerView.isInitialized) return
         shakeRotationBusy = true
-
-        // A short Y-axis flip gives the video a 3D turn while the screen direction changes.
+        val current = resources.configuration.orientation
+        val nextOrientation = if (direction >= 0) {
+            if (current == Configuration.ORIENTATION_LANDSCAPE)
+                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        } else {
+            if (current == Configuration.ORIENTATION_LANDSCAPE)
+                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            else ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+        }
+        val turnY = if (direction >= 0) 78f else -78f
         playerView.cameraDistance = dp(1800).toFloat()
         playerView.animate().cancel()
         playerView.rotationY = 0f
-        playerView.animate()
-            .rotationY(78f)
-            .setDuration(180L)
-            .withEndAction {
-                val current = resources.configuration.orientation
-                val nextOrientation = when (shakeOrientationState) {
-                    ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE ->
-                        ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                    ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE ->
-                        ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
-                    ActivityInfo.SCREEN_ORIENTATION_PORTRAIT ->
-                        ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                    else -> if (
-                        current == android.content.res.Configuration.ORIENTATION_LANDSCAPE
-                    ) ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-                    else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-                }
-                shakeOrientationState = nextOrientation
-
-                // Reset the view transform before Android relays out the full-screen player.
-                playerView.rotationY = 0f
-                requestedOrientation = nextOrientation
-                root.post {
-                    playerView.rotationY = -78f
-                    playerView.animate()
-                        .rotationY(0f)
-                        .setDuration(220L)
-                        .withEndAction {
-                            shakeRotationBusy = false
-                            showControls()
-                        }
-                        .start()
-                }
+        playerView.animate().rotationY(turnY).setDuration(180L).withEndAction {
+            shakeOrientationState = nextOrientation
+            playerView.rotationY = 0f
+            requestedOrientation = nextOrientation
+            root.post {
+                playerView.rotationY = -turnY
+                playerView.animate().rotationY(0f).setDuration(220L).withEndAction {
+                    shakeRotationBusy = false
+                    showControls()
+                }.start()
             }
-            .start()
+        }.start()
     }
 
     private fun toggleOrientation() {
@@ -1115,11 +1133,36 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private fun snapshotQueue(p: MediaController) { if (queueSnapshotTaken) return; previousQueue = (0 until p.mediaItemCount).map { p.getMediaItemAt(it) }; previousIndex = p.currentMediaItemIndex.coerceAtLeast(0); previousPosition = p.currentPosition.coerceAtLeast(0L); previousPlayWhenReady = p.playWhenReady; queueSnapshotTaken = true }
     private fun formatTime(ms: Long): String { val s = (ms.coerceAtLeast(0L) / 1000); return if (s >= 3600) String.format(Locale.US, "%d:%02d:%02d", s/3600, (s%3600)/60, s%60) else String.format(Locale.US, "%02d:%02d", s/60, s%60) }
     override fun onStop() { super.onStop() }
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Home/center navigation should minimize the live video into Android PiP.
+        enterMiniPlayer()
+    }
+
+    private fun enterMiniPlayer() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isFinishing || isInPictureInPictureMode) return
+        try {
+            val ratio = if (::playerView.isInitialized && playerView.width > 0 && playerView.height > 0)
+                Rational(playerView.width, playerView.height) else Rational(16, 9)
+            enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(ratio).build())
+        } catch (e: Exception) {
+            android.util.Log.w("NiceMultimediaVideo", "Could not enter mini-player", e)
+        }
+    }
+
+    override fun onPictureInPictureModeChanged(inPip: Boolean, newConfig: Configuration) {
+        super.onPictureInPictureModeChanged(inPip, newConfig)
+        if (::controls.isInitialized) controls.visibility = if (inPip) View.GONE else View.VISIBLE
+        if (::topBar.isInitialized) topBar.visibility = if (inPip) View.GONE else View.VISIBLE
+        if (::playerView.isInitialized) playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
+        if (!inPip && !isFinishing) showControls()
+    }
+
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         handler.removeCallbacks(hideControls)
-        // Close only the video Activity; keep the shared playback service alive for audio.
-        finish()
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isInPictureInPictureMode) enterMiniPlayer()
+        else finish()
     }
 
     override fun onDestroy() {
