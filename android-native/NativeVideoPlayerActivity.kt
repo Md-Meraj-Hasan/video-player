@@ -82,6 +82,8 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private var lastAngularZ = 0f
     private var accumulatedAngularZ = 0f
     private var lastSensorTimestamp = 0L
+    private var gyroGestureStartedAt = 0L
+    private var gyroPeakAngularSpeed = 0f
     private var pendingShakeDirection = 0
     private var pinchScale = 1f
     private var isPinching = false
@@ -350,12 +352,21 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                     if (mime != null) builder.setMimeType(mime)
                     mediaItems.add(builder.build())
                 }
-                val selectedIndex = mediaItems.indexOfFirst { it.mediaId == uri.toString() }.coerceAtLeast(0)
-                c.setMediaItems(mediaItems, selectedIndex, 0L)
-                c.setPlaybackSpeed(speed)
-                c.prepare()
-                c.playWhenReady = true
-                c.play()
+                // Reusing the same MediaSession must never restart the current video.
+                // Home/PiP can recreate or reconnect this Activity while the service keeps
+                // the player alive; preserve both the exact position and paused/playing state.
+                val requestedMediaId = uri.toString()
+                val alreadyOnRequestedVideo = c.mediaItemCount > 0 &&
+                    (c.currentMediaItem?.mediaId == requestedMediaId ||
+                     c.currentMediaItem?.localConfiguration?.uri?.toString() == requestedMediaId)
+                if (!alreadyOnRequestedVideo) {
+                    val selectedIndex = mediaItems.indexOfFirst { it.mediaId == requestedMediaId }.coerceAtLeast(0)
+                    c.setMediaItems(mediaItems, selectedIndex, 0L)
+                    c.setPlaybackSpeed(speed)
+                    c.prepare()
+                    c.playWhenReady = true
+                    c.play()
+                }
                 val l = object : Player.Listener {
                     override fun onPlayerError(error: androidx.media3.common.PlaybackException) {
                         android.util.Log.e("NiceMultimediaVideo", "Shared Media3 playback failed: ${error.errorCodeName}", error)
@@ -972,12 +983,11 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     }
     override fun onResume() {
         super.onResume()
-        // Re-register on resume so shake detection remains reliable after returning from a chooser.
-        gravityX = 0f; gravityY = 0f; gravityZ = 0f
+        // Directional twist detection uses the gyroscope only; reset its window on resume.
+        accumulatedAngularZ = 0f
+        gyroGestureStartedAt = 0L
+        gyroPeakAngularSpeed = 0f
         lastSensorTimestamp = 0L
-        accelerometer?.let { sensor ->
-            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
-        }
         sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sensor ->
             sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
         }
@@ -991,60 +1001,70 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
 
     override fun onSensorChanged(event: SensorEvent) {
+        if (event.sensor.type != Sensor.TYPE_GYROSCOPE || event.values.size < 3) return
         val now = android.os.SystemClock.elapsedRealtime()
-        if (event.sensor.type == Sensor.TYPE_GYROSCOPE && event.values.size >= 3) {
-            val dt = if (lastSensorTimestamp == 0L) 0f
-                else ((event.timestamp - lastSensorTimestamp) / 1_000_000_000f).coerceIn(0f, 0.05f)
-            lastSensorTimestamp = event.timestamp
-            // Z angular velocity is signed; positive and negative represent opposite turns.
-            lastAngularZ = event.values[2]
-            if (dt > 0f) accumulatedAngularZ += lastAngularZ * dt
+        val dt = if (lastSensorTimestamp == 0L) 0f
+            else ((event.timestamp - lastSensorTimestamp) / 1_000_000_000f).coerceIn(0f, 0.05f)
+        lastSensorTimestamp = event.timestamp
+
+        // Only a deliberate wrist twist can rotate the player. Ordinary bumps,
+        // walking and small phone movements are ignored (no accelerometer fallback).
+        val angularZ = event.values[2]
+        lastAngularZ = angularZ
+        if (now - lastShakeAt < 1100L || shakeRotationBusy) {
+            accumulatedAngularZ = 0f
+            gyroGestureStartedAt = 0L
+            gyroPeakAngularSpeed = 0f
             return
         }
-        if (event.sensor.type != Sensor.TYPE_ACCELEROMETER || event.values.size < 3) return
-
-        val x = event.values[0]
-        val y = event.values[1]
-        val z = event.values[2]
-        val alpha = 0.82f
-        gravityX = alpha * gravityX + (1f - alpha) * x
-        gravityY = alpha * gravityY + (1f - alpha) * y
-        gravityZ = alpha * gravityZ + (1f - alpha) * z
-        val lx = x - gravityX
-        val ly = y - gravityY
-        val lz = z - gravityZ
-        val impulse = kotlin.math.sqrt((lx * lx + ly * ly + lz * lz).toDouble()).toFloat()
-        if (impulse < 6.0f || now - lastShakeAt < 850L || shakeRotationBusy) return
-
-        // Prefer the gyro-integrated angular sign. When no gyro exists, derive a
-        // signed direction from the gravity-vector movement on the phone plane.
-        val gyroDirection = when {
-            kotlin.math.abs(accumulatedAngularZ) >= 0.10f ->
-                if (accumulatedAngularZ > 0f) 1 else -1
-            kotlin.math.abs(lastAngularZ) >= 0.35f ->
-                if (lastAngularZ > 0f) 1 else -1
-            else -> 0
+        if (kotlin.math.abs(angularZ) < 0.65f) {
+            if (now - gyroGestureStartedAt > 700L) {
+                accumulatedAngularZ = 0f
+                gyroGestureStartedAt = 0L
+                gyroPeakAngularSpeed = 0f
+            }
+            return
         }
-        val cross = gravityX * ly - gravityY * lx
-        val direction = if (gyroDirection != 0) gyroDirection else if (cross >= 0f) 1 else -1
-        accumulatedAngularZ = 0f
-        lastShakeAt = now
-        pendingShakeDirection = direction
-        rotateAfterShake(direction)
+        if (gyroGestureStartedAt == 0L) gyroGestureStartedAt = now
+        if (dt > 0f) accumulatedAngularZ += angularZ * dt
+        gyroPeakAngularSpeed = maxOf(gyroPeakAngularSpeed, kotlin.math.abs(angularZ))
+
+        val gestureDuration = now - gyroGestureStartedAt
+        if (gestureDuration in 100L..700L &&
+            kotlin.math.abs(accumulatedAngularZ) >= 0.95f &&
+            gyroPeakAngularSpeed >= 2.2f) {
+            val direction = if (accumulatedAngularZ > 0f) 1 else -1
+            lastShakeAt = now
+            accumulatedAngularZ = 0f
+            gyroGestureStartedAt = 0L
+            gyroPeakAngularSpeed = 0f
+            pendingShakeDirection = direction
+            rotateAfterShake(direction)
+        } else if (gestureDuration > 700L) {
+            accumulatedAngularZ = 0f
+            gyroGestureStartedAt = now
+            gyroPeakAngularSpeed = kotlin.math.abs(angularZ)
+        }
     }
 
     private fun rotateAfterShake(direction: Int) {
         if (isFinishing || !::playerView.isInitialized) return
         shakeRotationBusy = true
-        val current = resources.configuration.orientation
-        val nextOrientation = if (direction >= 0) {
-            if (current == Configuration.ORIENTATION_LANDSCAPE)
-                ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+        // Rotate one quarter-turn from the phone's actual display rotation.
+        // This includes both portrait directions, so returning upright is possible.
+        val displayRotation = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+            display?.rotation ?: android.view.Surface.ROTATION_0
         } else {
-            if (current == Configuration.ORIENTATION_LANDSCAPE)
-                ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
-            else ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
+            @Suppress("DEPRECATION")
+            windowManager.defaultDisplay.rotation
+        }
+        val currentQuarterTurn = displayRotation
+        val nextQuarterTurn = (currentQuarterTurn + if (direction >= 0) 1 else 3) % 4
+        val nextOrientation = when (nextQuarterTurn) {
+            android.view.Surface.ROTATION_0 -> ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+            android.view.Surface.ROTATION_90 -> ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE
+            android.view.Surface.ROTATION_180 -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_PORTRAIT
+            else -> ActivityInfo.SCREEN_ORIENTATION_REVERSE_LANDSCAPE
         }
         val turnY = if (direction >= 0) 78f else -78f
         playerView.cameraDistance = dp(1800).toFloat()
