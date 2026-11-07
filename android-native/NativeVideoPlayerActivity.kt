@@ -139,7 +139,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
         requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setPictureInPictureParams(PictureInPictureParams.Builder().setAspectRatio(Rational(16, 9)).build())
+            setPictureInPictureParams(buildMiniPlayerParams(Rational(16, 9)))
         }
         sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
@@ -1139,12 +1139,25 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         enterMiniPlayer()
     }
 
+    /**
+     * Compact landscape PiP stays as it is. Android 12+ additionally exposes
+     * an expanded portrait PiP mode through the system PiP expand control.
+     * Android chooses the final window bounds and keeps them within screen limits.
+     */
+    private fun buildMiniPlayerParams(compactRatio: Rational): PictureInPictureParams {
+        val builder = PictureInPictureParams.Builder().setAspectRatio(compactRatio)
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setExpandedAspectRatio(Rational(9, 16))
+        }
+        return builder.build()
+    }
+
     private fun enterMiniPlayer() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isFinishing || isInPictureInPictureMode) return
         try {
-            val ratio = if (::playerView.isInitialized && playerView.width > 0 && playerView.height > 0)
-                Rational(playerView.width, playerView.height) else Rational(16, 9)
-            enterPictureInPictureMode(PictureInPictureParams.Builder().setAspectRatio(ratio).build())
+            // Existing compact mini-size remains the default; users can expand it
+            // to a portrait, near-full-width PiP on Android 12 and newer.
+            enterPictureInPictureMode(buildMiniPlayerParams(Rational(16, 9)))
         } catch (e: Exception) {
             android.util.Log.w("NiceMultimediaVideo", "Could not enter mini-player", e)
         }
