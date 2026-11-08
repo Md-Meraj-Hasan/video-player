@@ -139,10 +139,9 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         @Suppress("DEPRECATION")
         window.decorView.systemUiVisibility = (View.SYSTEM_UI_FLAG_FULLSCREEN or View.SYSTEM_UI_FLAG_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY or View.SYSTEM_UI_FLAG_LAYOUT_STABLE or View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION or View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN)
-        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            setPictureInPictureParams(buildMiniPlayerParams(Rational(16, 9)))
-        }
+        // Start upright in portrait. Rotation is now manual through the rotate control;
+        // incidental motion must never force the player into landscape.
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
         sensorManager = getSystemService(SENSOR_SERVICE) as? SensorManager
         accelerometer = sensorManager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
         themeName = intent.getStringExtra(EXTRA_THEME) ?: "default"
@@ -427,6 +426,18 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
             setPadding(dp(8), 0, dp(8), 0)
         }
         top.addView(titleLabel, LinearLayout.LayoutParams(0, dp(48), 1f))
+        val backgroundButton = compactTool("▣") { showBackgroundOptions() }.apply {
+            contentDescription = "Background video options"
+            background = toolBackground()
+            elevation = dp(5).toFloat()
+            setTextColor(accentColor)
+            minWidth = dp(42)
+            textSize = 19f
+            setPadding(dp(4), dp(4), dp(4), dp(4))
+            isClickable = true
+            isFocusable = true
+        }
+        top.addView(backgroundButton, LinearLayout.LayoutParams(dp(42), dp(42)))
         shareButton = compactTool("↗") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
             background = toolBackground()
@@ -983,14 +994,13 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     }
     override fun onResume() {
         super.onResume()
-        // Directional twist detection uses the gyroscope only; reset its window on resume.
+        // Automatic shake rotation is disabled: it was too sensitive on some devices.
+        // Portrait is the stable default; use the on-screen rotate control when needed.
         accumulatedAngularZ = 0f
         gyroGestureStartedAt = 0L
         gyroPeakAngularSpeed = 0f
         lastSensorTimestamp = 0L
-        sensorManager?.getDefaultSensor(Sensor.TYPE_GYROSCOPE)?.let { sensor ->
-            sensorManager?.registerListener(this, sensor, SensorManager.SENSOR_DELAY_GAME)
-        }
+        sensorManager?.unregisterListener(this)
     }
 
     override fun onPause() {
@@ -999,53 +1009,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     }
 
     override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
-
-    override fun onSensorChanged(event: SensorEvent) {
-        if (event.sensor.type != Sensor.TYPE_GYROSCOPE || event.values.size < 3) return
-        val now = android.os.SystemClock.elapsedRealtime()
-        val dt = if (lastSensorTimestamp == 0L) 0f
-            else ((event.timestamp - lastSensorTimestamp) / 1_000_000_000f).coerceIn(0f, 0.05f)
-        lastSensorTimestamp = event.timestamp
-
-        // Only a deliberate wrist twist can rotate the player. Ordinary bumps,
-        // walking and small phone movements are ignored (no accelerometer fallback).
-        val angularZ = event.values[2]
-        lastAngularZ = angularZ
-        if (now - lastShakeAt < 1100L || shakeRotationBusy) {
-            accumulatedAngularZ = 0f
-            gyroGestureStartedAt = 0L
-            gyroPeakAngularSpeed = 0f
-            return
-        }
-        if (kotlin.math.abs(angularZ) < 0.65f) {
-            if (now - gyroGestureStartedAt > 700L) {
-                accumulatedAngularZ = 0f
-                gyroGestureStartedAt = 0L
-                gyroPeakAngularSpeed = 0f
-            }
-            return
-        }
-        if (gyroGestureStartedAt == 0L) gyroGestureStartedAt = now
-        if (dt > 0f) accumulatedAngularZ += angularZ * dt
-        gyroPeakAngularSpeed = maxOf(gyroPeakAngularSpeed, kotlin.math.abs(angularZ))
-
-        val gestureDuration = now - gyroGestureStartedAt
-        if (gestureDuration in 100L..700L &&
-            kotlin.math.abs(accumulatedAngularZ) >= 0.95f &&
-            gyroPeakAngularSpeed >= 2.2f) {
-            val direction = if (accumulatedAngularZ > 0f) 1 else -1
-            lastShakeAt = now
-            accumulatedAngularZ = 0f
-            gyroGestureStartedAt = 0L
-            gyroPeakAngularSpeed = 0f
-            pendingShakeDirection = direction
-            rotateAfterShake(direction)
-        } else if (gestureDuration > 700L) {
-            accumulatedAngularZ = 0f
-            gyroGestureStartedAt = now
-            gyroPeakAngularSpeed = kotlin.math.abs(angularZ)
-        }
-    }
+    override fun onSensorChanged(event: SensorEvent) = Unit
 
     private fun rotateAfterShake(direction: Int) {
         if (isFinishing || !::playerView.isInitialized) return
@@ -1152,34 +1116,52 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     }
     private fun snapshotQueue(p: MediaController) { if (queueSnapshotTaken) return; previousQueue = (0 until p.mediaItemCount).map { p.getMediaItemAt(it) }; previousIndex = p.currentMediaItemIndex.coerceAtLeast(0); previousPosition = p.currentPosition.coerceAtLeast(0L); previousPlayWhenReady = p.playWhenReady; queueSnapshotTaken = true }
     private fun formatTime(ms: Long): String { val s = (ms.coerceAtLeast(0L) / 1000); return if (s >= 3600) String.format(Locale.US, "%d:%02d:%02d", s/3600, (s%3600)/60, s%60) else String.format(Locale.US, "%02d:%02d", s/60, s%60) }
-    override fun onStop() { super.onStop() }
-    override fun onUserLeaveHint() {
-        super.onUserLeaveHint()
-        // Home/center navigation should minimize the live video into Android PiP.
-        enterMiniPlayer()
+    override fun onStop() {
+        // Unless the user explicitly entered PiP, leaving this screen must stop video.
+        if (!isInPictureInPictureMode) controller?.pause()
+        super.onStop()
     }
 
-    /**
-     * Compact landscape PiP stays as it is. Android 12+ additionally exposes
-     * an expanded portrait PiP mode through the system PiP expand control.
-     * Android chooses the final window bounds and keeps them within screen limits.
-     */
-    private fun buildMiniPlayerParams(compactRatio: Rational): PictureInPictureParams {
-        val builder = PictureInPictureParams.Builder().setAspectRatio(compactRatio)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+    override fun onUserLeaveHint() {
+        super.onUserLeaveHint()
+        // Background playback is opt-in only. Home/app-switch pauses video by default.
+        if (!isInPictureInPictureMode) controller?.pause()
+    }
+
+    private fun showBackgroundOptions() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
+            Toast.makeText(this, "Picture-in-Picture needs Android 8.0 or newer", Toast.LENGTH_LONG).show()
+            return
+        }
+        val options = arrayOf("Mini Picture-in-Picture (16:9)", "Portrait Picture-in-Picture (9:16)")
+        AlertDialog.Builder(this)
+            .setTitle("Background video")
+            .setItems(options) { _, which ->
+                val ratio = if (which == 1) Rational(9, 16) else Rational(16, 9)
+                enterPictureInPicture(ratio)
+            }
+            .setNegativeButton("Cancel", null)
+            .show()
+        showControls()
+    }
+
+    private fun buildPictureInPictureParams(ratio: Rational): PictureInPictureParams {
+        val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
+        // Android 12+ also offers its system expanded-PiP affordance for the compact mode.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ratio == Rational(16, 9)) {
             builder.setExpandedAspectRatio(Rational(9, 16))
         }
         return builder.build()
     }
 
-    private fun enterMiniPlayer() {
+    private fun enterPictureInPicture(ratio: Rational) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isFinishing || isInPictureInPictureMode) return
         try {
-            // Existing compact mini-size remains the default; users can expand it
-            // to a portrait, near-full-width PiP on Android 12 and newer.
-            enterPictureInPictureMode(buildMiniPlayerParams(Rational(16, 9)))
+            // Only the explicit top-bar choice enters PiP; ordinary Home/Back never does.
+            enterPictureInPictureMode(buildPictureInPictureParams(ratio))
         } catch (e: Exception) {
-            android.util.Log.w("NiceMultimediaVideo", "Could not enter mini-player", e)
+            android.util.Log.w("NiceMultimediaVideo", "Could not enter picture-in-picture", e)
+            Toast.makeText(this, "Picture-in-Picture could not start", Toast.LENGTH_SHORT).show()
         }
     }
 
@@ -1194,18 +1176,32 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     @Suppress("DEPRECATION")
     override fun onBackPressed() {
         handler.removeCallbacks(hideControls)
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O && !isInPictureInPictureMode) enterMiniPlayer()
-        else finish()
+        // Back means close the video screen, not send it to the background.
+        finish()
     }
 
     override fun onDestroy() {
-        handler.removeCallbacksAndMessages(null); playerView.player = null
-        val c = controller; listener?.let { c?.removeListener(it) }
-        if (isFinishing && queueSnapshotTaken && c != null) try {
-            if (previousQueue.isNotEmpty()) { c.setMediaItems(previousQueue, previousIndex.coerceIn(0, previousQueue.lastIndex), previousPosition); c.prepare(); if (previousPlayWhenReady) c.play() else c.pause() } else c.clearMediaItems()
-        } catch (e: Exception) { android.util.Log.w("NiceMultimediaVideo", "Could not restore previous audio queue", e) }
+        handler.removeCallbacksAndMessages(null)
+        val c = controller
+        // Stop the video before detaching the view so it cannot continue as hidden audio.
+        if (isFinishing && c != null) {
+            runCatching { c.pause() }
+            runCatching {
+                if (queueSnapshotTaken && previousQueue.isNotEmpty()) {
+                    c.setMediaItems(previousQueue, previousIndex.coerceIn(0, previousQueue.lastIndex), previousPosition)
+                    c.prepare()
+                    c.pause() // restore the prior audio queue paused; never resume it behind the app
+                } else {
+                    c.clearMediaItems()
+                }
+            }.onFailure { android.util.Log.w("NiceMultimediaVideo", "Could not stop video playback cleanly", it) }
+        }
+        if (::playerView.isInitialized) playerView.player = null
+        listener?.let { c?.removeListener(it) }
         controllerFuture?.let { MediaController.releaseFuture(it) }; controllerFuture = null; controller = null
-        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON); if (isFinishing) requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT; super.onDestroy()
+        window.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+        super.onDestroy()
     }
     companion object {
         const val EXTRA_URI = "com.meraj.mediaplayer.VIDEO_URI"
