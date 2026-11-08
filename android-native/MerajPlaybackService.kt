@@ -61,8 +61,16 @@ class MerajPlaybackService : MediaSessionService() {
     override fun onGetSession(controllerInfo: MediaSession.ControllerInfo): MediaSession? = mediaSession
 
     override fun onTaskRemoved(rootIntent: Intent?) {
-        val p = player
-        if (p == null || !p.playWhenReady || p.mediaItemCount == 0) stopSelf()
+        // Removing the app task must never leave a hidden video/audio session alive.
+        // Explicit PiP is owned by the visible Activity; once the task is removed,
+        // stop the shared player and release this foreground media service.
+        runCatching {
+            player?.pause()
+            player?.clearMediaItems()
+        }.onFailure {
+            android.util.Log.w("MerajPlaybackService", "Could not stop playback after task removal", it)
+        }
+        stopSelf()
     }
 
     override fun onDestroy() {
