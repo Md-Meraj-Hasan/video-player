@@ -97,6 +97,12 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private var previousPosition = 0L
     private var previousPlayWhenReady = false
     private var queueSnapshotTaken = false
+    // Snapshot the active video timeline before PiP so Android lifecycle changes
+    // cannot cause a fresh start from 00:00 when the user taps the BG icon.
+    private var enteringPictureInPicture = false
+    private var pipEntryMediaId: String? = null
+    private var pipEntryPosition = 0L
+    private var pipEntryWasPlaying = false
     private var videoUri: Uri? = null
     private var videoTitle = "Video"
     private var locked = false
@@ -1117,8 +1123,9 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private fun snapshotQueue(p: MediaController) { if (queueSnapshotTaken) return; previousQueue = (0 until p.mediaItemCount).map { p.getMediaItemAt(it) }; previousIndex = p.currentMediaItemIndex.coerceAtLeast(0); previousPosition = p.currentPosition.coerceAtLeast(0L); previousPlayWhenReady = p.playWhenReady; queueSnapshotTaken = true }
     private fun formatTime(ms: Long): String { val s = (ms.coerceAtLeast(0L) / 1000); return if (s >= 3600) String.format(Locale.US, "%d:%02d:%02d", s/3600, (s%3600)/60, s%60) else String.format(Locale.US, "%02d:%02d", s/60, s%60) }
     override fun onStop() {
-        // Unless the user explicitly entered PiP, leaving this screen must stop video.
-        if (!isInPictureInPictureMode) controller?.pause()
+        // Do not pause during the short transition between requesting PiP and
+        // Android confirming PiP mode. Normal Home/app-switch still pauses.
+        if (!isInPictureInPictureMode && !enteringPictureInPicture) controller?.pause()
         super.onStop()
     }
 
@@ -1156,10 +1163,21 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
 
     private fun enterPictureInPicture(ratio: Rational) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O || isFinishing || isInPictureInPictureMode) return
+        val activePlayer = controller
+        // Remember the exact playing item, position and play state before Android
+        // changes the Activity window. Do not setMediaItems(), prepare(), or seek
+        // during a normal PiP transition.
+        pipEntryMediaId = activePlayer?.currentMediaItem?.mediaId
+            ?: activePlayer?.currentMediaItem?.localConfiguration?.uri?.toString()
+        pipEntryPosition = activePlayer?.currentPosition?.coerceAtLeast(0L) ?: 0L
+        pipEntryWasPlaying = activePlayer?.isPlaying == true || activePlayer?.playWhenReady == true
+        enteringPictureInPicture = true
         try {
-            // Only the explicit top-bar choice enters PiP; ordinary Home/Back never does.
-            enterPictureInPictureMode(buildPictureInPictureParams(ratio))
+            // PiP reuses the SAME Media3 session; playback must continue at this timestamp.
+            val entered = enterPictureInPictureMode(buildPictureInPictureParams(ratio))
+            if (!entered) enteringPictureInPicture = false
         } catch (e: Exception) {
+            enteringPictureInPicture = false
             android.util.Log.w("NiceMultimediaVideo", "Could not enter picture-in-picture", e)
             Toast.makeText(this, "Picture-in-Picture could not start", Toast.LENGTH_SHORT).show()
         }
@@ -1167,6 +1185,23 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
 
     override fun onPictureInPictureModeChanged(inPip: Boolean, newConfig: Configuration) {
         super.onPictureInPictureModeChanged(inPip, newConfig)
+        if (inPip) {
+            // Normally the shared player has not moved. If Android recreated the
+            // Activity and the service timeline unexpectedly reset, recover the
+            // saved timestamp for the SAME media item only.
+            val p = controller
+            val currentId = p?.currentMediaItem?.mediaId
+                ?: p?.currentMediaItem?.localConfiguration?.uri?.toString()
+            if (p != null && !pipEntryMediaId.isNullOrBlank() &&
+                currentId == pipEntryMediaId && pipEntryPosition > 0L &&
+                p.currentPosition + 1500L < pipEntryPosition) {
+                p.seekTo(pipEntryPosition)
+                if (pipEntryWasPlaying) p.play() else p.pause()
+            }
+            enteringPictureInPicture = false
+        } else {
+            enteringPictureInPicture = false
+        }
         if (::controls.isInitialized) controls.visibility = if (inPip) View.GONE else View.VISIBLE
         if (::topBar.isInitialized) topBar.visibility = if (inPip) View.GONE else View.VISIBLE
         if (::playerView.isInitialized) playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
