@@ -65,6 +65,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private lateinit var rotateButton: View
     private lateinit var lockButton: View
     private lateinit var shareButton: TextView
+    private lateinit var backgroundButton: TextView
     private lateinit var volumeButton: TextView
     private lateinit var titleLabel: TextView
     private lateinit var scaleDetector: ScaleGestureDetector
@@ -121,8 +122,8 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private var activeSideGesture = 0 // 0=none, 1=brightness, 2=volume
     private var sideGestureAdjusted = false
     private val handler = Handler(Looper.getMainLooper())
-    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
-    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE } }
+    private val hideControls = Runnable { if (!locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; if (::backgroundButton.isInitialized) backgroundButton.visibility = View.GONE } }
+    private val hideLockedIndicator = Runnable { if (locked) { controls.visibility = View.GONE; topBar.visibility = View.GONE; if (::backgroundButton.isInitialized) backgroundButton.visibility = View.GONE } }
     private val progress = object : Runnable {
         override fun run() {
             val p = controller
@@ -432,7 +433,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
             setPadding(dp(8), 0, dp(8), 0)
         }
         top.addView(titleLabel, LinearLayout.LayoutParams(0, dp(48), 1f))
-        val backgroundButton = compactTool("▣") { showBackgroundOptions() }.apply {
+        backgroundButton = compactTool("▣") { enterPictureInPictureForCurrentVideo() }.apply {
             contentDescription = "Background video options"
             background = toolBackground()
             elevation = dp(5).toFloat()
@@ -443,7 +444,6 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
             isClickable = true
             isFocusable = true
         }
-        top.addView(backgroundButton, LinearLayout.LayoutParams(dp(42), dp(42)))
         shareButton = compactTool("↗") { shareCurrentVideo() }.apply {
             contentDescription = "Share current video"
             background = toolBackground()
@@ -459,6 +459,12 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         topBar = top
         // No outer rounded rectangle around speed, title, and share; button circles remain.
         root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
+        // Anchor the background/PiP action over the video, away from the Share icon.
+        val backgroundButtonParams = FrameLayout.LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.RIGHT).apply {
+            topMargin = dp(64)
+            rightMargin = dp(14)
+        }
+        root.addView(backgroundButton, backgroundButtonParams)
 
         // Transparent, balanced control row: previous immediately left of the centered Play/Pause,
         // next immediately right. Remaining actions are distributed on both sides.
@@ -877,6 +883,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         }
         applyVisibility(controls)
         topBar.visibility = if (value) View.GONE else View.VISIBLE
+        if (::backgroundButton.isInitialized) backgroundButton.visibility = if (value) View.GONE else View.VISIBLE
         if (value) {
             controls.findViewWithTag<LinearLayout>("meraj-right-control-group")?.gravity = Gravity.CENTER
             (controls.getChildAt(0) as? LinearLayout)?.gravity = Gravity.CENTER
@@ -915,6 +922,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
             if (!locked) {
                 controls.visibility = View.GONE
                 topBar.visibility = View.GONE
+                if (::backgroundButton.isInitialized) backgroundButton.visibility = View.GONE
                 handler.removeCallbacks(hideControls)
             }
         } else showControls()
@@ -922,6 +930,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private fun showControls() {
         controls.visibility = View.VISIBLE
         topBar.visibility = View.VISIBLE
+        if (::backgroundButton.isInitialized) backgroundButton.visibility = if (locked) View.GONE else View.VISIBLE
         handler.removeCallbacks(hideControls)
         if (!locked) handler.postDelayed(hideControls, 5000)
     }
@@ -1135,28 +1144,30 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         if (!isInPictureInPictureMode) controller?.pause()
     }
 
-    private fun showBackgroundOptions() {
+    private fun enterPictureInPictureForCurrentVideo() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) {
             Toast.makeText(this, "Picture-in-Picture needs Android 8.0 or newer", Toast.LENGTH_LONG).show()
             return
         }
-        val options = arrayOf("Mini Picture-in-Picture (16:9)", "Portrait Picture-in-Picture (9:16)")
-        AlertDialog.Builder(this)
-            .setTitle("Background video")
-            .setItems(options) { _, which ->
-                val ratio = if (which == 1) Rational(9, 16) else Rational(16, 9)
-                enterPictureInPicture(ratio)
-            }
-            .setNegativeButton("Cancel", null)
-            .show()
-        showControls()
+        val videoSize = controller?.videoSize
+        val hasVideoDimensions = videoSize != null && videoSize.width > 0 && videoSize.height > 0
+        val width = if (hasVideoDimensions) (videoSize!!.width * videoSize.pixelWidthHeightRatio).toInt().coerceAtLeast(1) else 16
+        val height = if (hasVideoDimensions) videoSize!!.height else 9
+        val rawRatio = width.toDouble() / height.toDouble()
+        // Android accepts PiP aspect ratios only between 1:2.39 and 2.39:1.
+        val ratio = when {
+            rawRatio < (1.0 / 2.39) -> Rational(100, 239)
+            rawRatio > 2.39 -> Rational(239, 100)
+            else -> Rational(width, height)
+        }
+        enterPictureInPicture(ratio)
     }
 
     private fun buildPictureInPictureParams(ratio: Rational): PictureInPictureParams {
         val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
-        // Android 12+ also offers its system expanded-PiP affordance for the compact mode.
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S && ratio == Rational(16, 9)) {
-            builder.setExpandedAspectRatio(Rational(9, 16))
+        // Android 12+ expanded PiP is a wide canvas, so expanding/zooming uses full width.
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            builder.setExpandedAspectRatio(Rational(16, 9))
         }
         return builder.build()
     }
@@ -1204,6 +1215,8 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         }
         if (::controls.isInitialized) controls.visibility = if (inPip) View.GONE else View.VISIBLE
         if (::topBar.isInitialized) topBar.visibility = if (inPip) View.GONE else View.VISIBLE
+        if (::backgroundButton.isInitialized) backgroundButton.visibility = View.GONE
+        if (::gestureIndicator.isInitialized) gestureIndicator.visibility = View.GONE
         if (::playerView.isInitialized) playerView.resizeMode = AspectRatioFrameLayout.RESIZE_MODE_FIT
         if (!inPip && !isFinishing) showControls()
     }
