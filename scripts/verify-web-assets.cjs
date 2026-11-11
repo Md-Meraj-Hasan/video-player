@@ -7,7 +7,7 @@ if (!roots.length) roots.push('dist');
 let hasError = false;
 
 for (const root of roots) {
-  const htmlFiles = ['index.html', 'video-player.html'];
+  const htmlFiles = ['index.html', 'video-player.html', 'download-center.html'];
   
   for (const htmlName of htmlFiles) {
     const indexPath = path.join(root, htmlName);
