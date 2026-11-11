@@ -73,8 +73,7 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
     const onCreate = /(?:@Override\s*)?protected\s+void\s+onCreate\s*\(\s*Bundle\s+savedInstanceState\s*\)\s*\{/.exec(main);
     if (onCreate) {
       const insertAt = onCreate.index + onCreate[0].length;
-      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);
-        registerPlugin(YouTubeDownloadPlugin.class);' + main.slice(insertAt);
+      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);\n        registerPlugin(YouTubeDownloadPlugin.class);' + main.slice(insertAt);
     } else {
       if (!/import\s+android\.os\.Bundle\s*;/.test(main)) {
         const packageMatch = /package\s+[A-Za-z0-9_.]+\s*;/.exec(main);
