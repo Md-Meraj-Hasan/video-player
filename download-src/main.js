@@ -676,7 +676,16 @@ $("#playlistBackgroundBtn").addEventListener("click", () => {
   $("#playlistExitModal").hidden = true;
   $("#playlistModal").hidden = true;
   status.textContent = "Playlist is running in the background. Cancel anytime from Downloads or the notification.";
-  $("#downloadState").innerHTML = '<b>Playlist downloading in background</b><small id="backgroundPlaylistStatus">Your playlist continues while you use other apps.</small><button type="button" class="settings-secondary" id="backgroundPlaylistCancel">Cancel playlist download</button>';
+  $("#downloadState").innerHTML = '<b>Playlist downloading in background</b><small id="backgroundPlaylistStatus">Your playlist continues while you use other apps.</small><button type="button" class="primary" id="backgroundPlaylistView">View playlist</button><button type="button" class="settings-secondary" id="backgroundPlaylistCancel">Cancel playlist download</button>';
+  $("#backgroundPlaylistView").addEventListener("click", () => {
+    if (!activePlaylist) {
+      status.textContent = "Playlist details are no longer available. Paste the playlist link again to reload it.";
+      switchTab("home");
+      return;
+    }
+    $("#playlistExitModal").hidden = true;
+    $("#playlistModal").hidden = false;
+  });
   $("#backgroundPlaylistCancel").addEventListener("click", cancelPlaylistFromAnywhere);
   switchTab("downloads");
 });
