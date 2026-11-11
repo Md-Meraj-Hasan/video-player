@@ -1,11 +1,55 @@
 import "./style.css";
-import { registerPlugin, Capacitor } from "@capacitor/core";
+// Native downloader calls are proxied through the parent Nice Multimedia Capacitor bridge.
+const Capacitor = { isNativePlatform: () => true };
+
 import { Innertube, Platform } from "youtubei.js/web";
 
 Platform.shim.eval = async (data) => new Function(data.output)();
 const youtubeClients = new Map();
 
-const YtDlp = registerPlugin("YtDlp");
+let nativeRequestSequence = 0;
+const nativePending = new Map();
+const nativeListeners = new Map();
+window.addEventListener("message", event => {
+  if (event.source !== window.parent) return;
+  const message = event.data;
+  if (message?.type === "nice-downloader-native-result" && message.requestId) {
+    const pending = nativePending.get(message.requestId);
+    if (!pending) return;
+    nativePending.delete(message.requestId);
+    if (message.ok) pending.resolve(message.result);
+    else pending.reject(new Error(message.error || "Native downloader request failed"));
+  } else if (message?.type === "nice-downloader-native-event") {
+    for (const callback of nativeListeners.get(message.eventName) || []) {
+      try { callback(message.data || {}); } catch (error) { console.error(error); }
+    }
+  }
+});
+function callNativeDownloader(action, payload = {}) {
+  return new Promise((resolve, reject) => {
+    const requestId = "nice-downloader-" + (++nativeRequestSequence);
+    nativePending.set(requestId, { resolve, reject });
+    window.parent.postMessage({ bridge: "nice-downloader-native", requestId, action, payload }, "*");
+  });
+}
+const YtDlp = {
+  httpRequest: payload => callNativeDownloader("httpRequest", payload),
+  downloadStream: payload => callNativeDownloader("downloadStream", payload),
+  getStorageStatus: payload => callNativeDownloader("getStorageStatus", payload),
+  requestStoragePermission: payload => callNativeDownloader("requestStoragePermission", payload),
+  openAppSettings: payload => callNativeDownloader("openAppSettings", payload),
+  startBackgroundPlaylist: payload => callNativeDownloader("startBackgroundPlaylist", payload),
+  updateBackgroundPlaylist: payload => callNativeDownloader("updateBackgroundPlaylist", payload),
+  stopBackgroundPlaylist: payload => callNativeDownloader("stopBackgroundPlaylist", payload),
+  getPlaylistCancelState: payload => callNativeDownloader("getPlaylistCancelState", payload),
+  cancelDownload: payload => callNativeDownloader("cancelDownload", payload),
+  addListener: async (eventName, callback) => {
+    const listeners = nativeListeners.get(eventName) || new Set();
+    listeners.add(callback);
+    nativeListeners.set(eventName, listeners);
+    return { remove: async () => listeners.delete(callback) };
+  }
+};
 
 async function youtubeNativeFetch(input, init = {}) {
   if (!Capacitor.isNativePlatform()) return window.fetch(input, init);
