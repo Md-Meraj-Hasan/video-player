@@ -458,12 +458,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         topBar = top
         // No outer rounded rectangle around speed, title, and share; button circles remain.
         root.addView(topBar, FrameLayout.LayoutParams(-1, -2, Gravity.TOP))
-        // Anchor the background/PiP action over the video, away from the Share icon.
-        val backgroundButtonParams = FrameLayout.LayoutParams(dp(42), dp(42), Gravity.TOP or Gravity.RIGHT).apply {
-            topMargin = dp(64)
-            rightMargin = dp(14)
-        }
-        root.addView(backgroundButton, backgroundButtonParams)
+        // Top-right PiP shortcut below Share is intentionally hidden; middle-row PiP remains available.
 
         // Transparent, balanced control row: previous immediately left of the centered Play/Pause,
         // next immediately right. Remaining actions are distributed on both sides.
@@ -516,6 +511,12 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         val smallControl = if (landscapeControls) dp(48) else dp(42)
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
+        pipButton = ThemeIconView(this, "pip").apply {
+            background = toolBackground()
+            elevation = dp(5).toFloat()
+            contentDescription = "Enter Picture-in-Picture"
+            setOnClickListener { enterPictureInPictureForCurrentVideo(); showControls() }
+        }
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         rotateButton = ThemeIconView(this, "rotate").apply {
             background = toolBackground()
