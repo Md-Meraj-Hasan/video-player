@@ -102,10 +102,7 @@ jobs:
       - name: Generate Android project
         run: npx cap add android
 
-      - name: Integrate native media permissions and scanner
-        run: node scripts/integrate-native-media.cjs
-
-      - name: Integrate downloader and local media native plugins
+      - name: Integrate native media and Nice Downloader plugins
         run: node scripts/integrate-native-media.cjs
 
       - name: Allow YouTube downloader network access
@@ -174,21 +171,27 @@ jobs:
           python3 - "$APK" <<'PYVERIFY'
           import posixpath, re, sys, zipfile
           apk = sys.argv[1]
+          html_files = ["index.html", "video-player.html", "download-center.html"]
           with zipfile.ZipFile(apk) as z:
               names = set(z.namelist())
-              html_name = "assets/public/index.html"
-              if html_name not in names:
-                  raise SystemExit("APK is missing assets/public/index.html")
-              html = z.read(html_name).decode("utf-8", "replace")
-              refs = re.findall(r"""(?:src|href)=["']([^"']+)["']""", html)
-              refs = [r for r in refs if not r.startswith(("http:", "https:", "data:", "//", "/"))]
-              for ref in refs:
-                  target = posixpath.normpath("assets/public/" + ref.split("?", 1)[0].lstrip("./"))
-                  if target not in names:
-                      raise SystemExit(f"APK HTML references missing asset: {target}")
-              if not any(r.endswith(".js") for r in refs):
-                  raise SystemExit("APK HTML has no local JavaScript bundle reference")
-              print("APK web assets verified:", len(refs), "local references")
+              total_refs = 0
+              for html_name in html_files:
+                  apk_name = "assets/public/" + html_name
+                  if apk_name not in names:
+                      raise SystemExit(f"APK is missing {apk_name}")
+                  html = z.read(apk_name).decode("utf-8", "replace")
+                  refs = re.findall(r"""(?:src|href)=["']([^"']+)["']""", html)
+                  refs = [r for r in refs if not r.startswith(("http:", "https:", "data:", "//", "/"))]
+                  for ref in refs:
+                      target = posixpath.normpath("assets/public/" + ref.split("?", 1)[0].lstrip("./"))
+                      if target not in names:
+                          raise SystemExit(f"{apk_name} references missing asset: {target}")
+                  if not any(r.endswith(".js") for r in refs):
+                      raise SystemExit(f"{apk_name} has no local JavaScript bundle reference")
+                  if not any(r.endswith(".css") for r in refs):
+                      raise SystemExit(f"{apk_name} has no local CSS reference")
+                  total_refs += len(refs)
+              print("APK web pages verified:", len(html_files), "pages,", total_refs, "local references")
           PYVERIFY
 
       - name: Upload APK
