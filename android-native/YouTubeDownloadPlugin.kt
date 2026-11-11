@@ -93,6 +93,59 @@ class YouTubeDownloadPlugin : Plugin() {
         call.resolve(JSObject().apply { put("cancelling", true) })
     }
 
+    /** Lists videos saved by Nice Downloader from the public Downloads/NiceDownloader folder. */
+    @PluginMethod
+    fun listDownloadedVideos(call: PluginCall) {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            call.resolve(JSObject().put("items", JSArray()).put("count", 0))
+            return
+        }
+        val items = JSArray()
+        val projection = arrayOf(
+            MediaStore.MediaColumns._ID,
+            MediaStore.MediaColumns.DISPLAY_NAME,
+            MediaStore.MediaColumns.SIZE,
+            MediaStore.MediaColumns.MIME_TYPE,
+            MediaStore.MediaColumns.DATE_ADDED,
+            MediaStore.MediaColumns.RELATIVE_PATH,
+            MediaStore.MediaColumns.DESCRIPTION
+        )
+        try {
+            val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} LIKE ?"
+            val args = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/", "video/%")
+            getContext().contentResolver.query(
+                MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args,
+                "${MediaStore.MediaColumns.DATE_ADDED} DESC"
+            )?.use { cursor ->
+                val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
+                val nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
+                val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
+                val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
+                val dateCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED)
+                val descCol = cursor.getColumnIndex(MediaStore.MediaColumns.DESCRIPTION)
+                while (cursor.moveToNext()) {
+                    val id = cursor.getLong(idCol)
+                    val uri = android.content.ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id)
+                    val item = JSObject()
+                    item.put("id", "nice-downloader-$id")
+                    item.put("uri", uri.toString())
+                    item.put("name", cursor.getString(nameCol) ?: "Downloaded video")
+                    item.put("size", cursor.getLong(sizeCol))
+                    item.put("mimeType", cursor.getString(mimeCol) ?: "video/mp4")
+                    item.put("type", cursor.getString(mimeCol) ?: "video/mp4")
+                    item.put("duration", 0)
+                    item.put("relativePath", Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/")
+                    item.put("playlistName", if (descCol >= 0) cursor.getString(descCol)?.removePrefix("NiceDownloaderPlaylist:")?.takeIf { it != cursor.getString(descCol) } else null)
+                    item.put("dateAdded", if (dateCol >= 0) cursor.getLong(dateCol) else 0L)
+                    items.put(item)
+                }
+            }
+            call.resolve(JSObject().put("items", items).put("count", items.length()))
+        } catch (e: Exception) {
+            call.reject("Could not list Nice Downloader videos: ${e.message}", e)
+        }
+    }
+
     @PluginMethod
     fun getStorageStatus(call: PluginCall) {
         val legacy = Build.VERSION.SDK_INT <= Build.VERSION_CODES.P
@@ -321,6 +374,7 @@ class YouTubeDownloadPlugin : Plugin() {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
                     put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
+                    call.getString("playlistName")?.takeIf { it.isNotBlank() }?.let { put(MediaStore.MediaColumns.DESCRIPTION, "NiceDownloaderPlaylist:" + it.take(180)) }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader")
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
