@@ -10,6 +10,7 @@ export default defineConfig({
     rollupOptions: {
       input: {
         main: resolve(process.cwd(), 'index.html'),
+      downloader: resolve(process.cwd(), 'download-center.html'),
         video: resolve(process.cwd(), 'video-player.html')
       }
     }
