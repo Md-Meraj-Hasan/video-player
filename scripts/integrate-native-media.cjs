@@ -98,6 +98,13 @@ if (!main.includes('MediaLibraryScannerPlugin::class.java') && !main.includes('M
 if (!main.includes('MerajMediaPlayerPlugin::class.java') && !main.includes('MerajMediaPlayerPlugin.class')) {
   main = main.replace(/registerPlugin\(MediaLibraryScannerPlugin(::class\.java|\.class)\);?/, match => match + (match.includes('::class') ? '\n        registerPlugin(MerajMediaPlayerPlugin::class.java)' : '\n        registerPlugin(MerajMediaPlayerPlugin.class);'));
 }
+// Ensure the downloader plugin is registered for both generated and pre-existing MainActivity files.
+if (mainActivity.endsWith('.kt') && !main.includes('YouTubeDownloadPlugin::class.java')) {
+  main = main.replace(/registerPlugin\(MerajMediaPlayerPlugin::class\.java\)/, match => match + '\n        registerPlugin(YouTubeDownloadPlugin::class.java)');
+}
+if (mainActivity.endsWith('.java') && !main.includes('YouTubeDownloadPlugin.class')) {
+  main = main.replace(/registerPlugin\(MerajMediaPlayerPlugin\.class\);?/, match => match + '\n        registerPlugin(YouTubeDownloadPlugin.class);');
+}
 fs.writeFileSync(mainActivity, main);
 
 let xml = fs.readFileSync(manifest, 'utf8');
@@ -171,7 +178,7 @@ if (!xml.includes('NativeVideoPlayerActivity')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <activity android:name=".NativeVideoPlayerActivity" android:exported="false" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true" />`);
 }
 if (!xml.includes('YouTubeDownloadService')) {
-  xml = xml.replace(/<application\\b[^>]*>/, match => `${match}
+  xml = xml.replace(/<application\b[^>]*>/, match => `${match}
         <service android:name=".YouTubeDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />`);
 }
 if (!xml.includes('MerajPlaybackService')) {
