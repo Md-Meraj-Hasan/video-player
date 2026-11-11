@@ -61,6 +61,11 @@ jobs:
             exit 1
           fi
 
+          if [ ! -f download-center.html ] || [ ! -d download-src ] || [ ! -f android-native/YouTubeDownloadPlugin.kt ] || [ ! -f android-native/YouTubeDownloadService.kt ]; then
+            echo "ERROR: embedded Nice Downloader page or native sources are missing."
+            exit 1
+          fi
+
           if [ ! -f scripts/strip-internet-permission.cjs ]; then
             echo "ERROR: Internet permission script is missing."
             exit 1
@@ -100,13 +105,16 @@ jobs:
       - name: Integrate native media permissions and scanner
         run: node scripts/integrate-native-media.cjs
 
-      - name: Block internet permission
+      - name: Integrate downloader and local media native plugins
+        run: node scripts/integrate-native-media.cjs
+
+      - name: Allow YouTube downloader network access
         run: node scripts/strip-internet-permission.cjs
 
       - name: Sync Capacitor assets
         run: npx cap sync android
 
-      - name: Re-apply internet permission block
+      - name: Ensure downloader network access after Capacitor sync
         run: node scripts/strip-internet-permission.cjs
 
       - name: Verify Capacitor copied web assets
@@ -124,8 +132,8 @@ jobs:
             exit 1
           fi
 
-          if ! grep -q 'tools:node="remove"' "$MANIFEST"; then
-            echo "ERROR: INTERNET permission removal rule is missing."
+          if ! grep -q 'android.permission.INTERNET' "$MANIFEST"; then
+            echo "ERROR: INTERNET permission required for Nice Downloader is missing."
             cat "$MANIFEST"
             exit 1
           fi
@@ -148,7 +156,7 @@ jobs:
             exit 1
           fi
 
-          echo "Internet permission block plus audio/video permissions verified."
+          echo "Downloader network permission plus audio/video permissions verified."
 
       - name: Build debug APK
         working-directory: android
