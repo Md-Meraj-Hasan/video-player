@@ -302,7 +302,7 @@ function renderPlaylist() {
     }).join('');
     playlistGroupsEl.querySelectorAll('[data-playlist-name]').forEach(button => {
       button.addEventListener('click', () => {
-        const group = filtered.filter(v => v.playlistName === button.dataset.playlistName);
+        const group = filtered.filter(v => v.playlistName === button.dataset.playlistName).sort((a,b) => (a.playlistIndex < 0 ? 999999 : a.playlistIndex) - (b.playlistIndex < 0 ? 999999 : b.playlistIndex));
         if (group.length) playVideoAtIndex(videos.indexOf(group[0]), group);
       });
     });
