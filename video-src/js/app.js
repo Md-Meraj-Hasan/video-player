@@ -52,6 +52,7 @@ function callNative(action, payload = {}) {
 window.addEventListener('message', (event) => {
   const msg = event.data;
   if (!msg) return;
+  if (msg.type === 'meraj-video-refresh-library') { scanDeviceVideos(); return; }
 
   // Handle native result
   if (msg.bridge === 'meraj-video-native-result' && msg.requestId) {
