@@ -13,7 +13,7 @@ const nativeListeners = new Map();
 window.addEventListener("message", event => {
   if (event.source !== window.parent) return;
   const message = event.data;
-  if (message?.type === "nice-downloader-native-result" && message.requestId) {
+  if ((message?.bridge === "nice-downloader-native-result" || message?.type === "nice-downloader-native-result") && message.requestId) {
     const pending = nativePending.get(message.requestId);
     if (!pending) return;
     nativePending.delete(message.requestId);
@@ -470,6 +470,8 @@ $("#storageSetupBtn").addEventListener("click", async () => {
   } catch (error) {
     $("#storageHelp").textContent = error?.message || "Could not request storage permission.";
   } finally {
+    action.disabled = false;
+    action.textContent = "Check storage again";
     await refreshStorageSettings();
   }
 });
