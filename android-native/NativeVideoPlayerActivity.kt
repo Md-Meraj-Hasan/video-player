@@ -61,7 +61,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private lateinit var positionLabel: TextView
     private lateinit var durationLabel: TextView
     private lateinit var speedButton: TextView
-    private lateinit var fitButton: View
+    private lateinit var pipButton: View
     private lateinit var rotateButton: View
     private lateinit var lockButton: View
     private lateinit var shareButton: TextView
@@ -107,8 +107,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
     private var videoUri: Uri? = null
     private var videoTitle = "Video"
     private var locked = false
-    private var fitMode = 0
-    private var speed = 1f
+        private var speed = 1f
     private var themeName = "default"
     private var accentColor: Int = Color.rgb(155, 105, 255)
     private var volumeMuted = false
@@ -518,11 +517,11 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
-        fitButton = ThemeIconView(this, "fit").apply {
+        pipButton = ThemeIconView(this, "pip").apply {
             background = toolBackground()
             elevation = dp(5).toFloat()
-            contentDescription = "Cycle Fit, Zoom and Fill modes"
-            setOnClickListener { toggleFit() }
+            contentDescription = "Enter Picture-in-Picture"
+            setOnClickListener { enterPictureInPictureForCurrentVideo(); showControls() }
         }
         rotateButton = ThemeIconView(this, "rotate").apply {
             background = toolBackground()
@@ -548,7 +547,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         rightGroup.addView(nextButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         val forward = skipButton(false)
         rightGroup.addView(forward, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
-        rightGroup.addView(fitButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
+        rightGroup.addView(pipButton, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
         lockButton = ThemeIconView(this, "lock").apply {
             background = toolBackground()
             elevation = dp(5).toFloat()
@@ -660,8 +659,6 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         context: android.content.Context,
         private val kind: String
     ) : View(context) {
-        var fitMode: Int = 0
-            set(value) { field = value; invalidate() }
         var isLocked: Boolean = false
             set(value) { field = value; invalidate() }
 
@@ -680,33 +677,15 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
             val cy = height / 2f
             val unit = side * 0.27f
             when (kind) {
-                "fit" -> {
-                    when (fitMode) {
-                        0 -> { // four clear outward corner brackets = Fit
-                            val p = Path()
-                            val l = cx - unit; val r = cx + unit
-                            val t = cy - unit; val b = cy + unit
-                            val k = unit * 0.48f
-                            p.moveTo(l, t + k); p.lineTo(l, t); p.lineTo(l + k, t)
-                            p.moveTo(r - k, t); p.lineTo(r, t); p.lineTo(r, t + k)
-                            p.moveTo(l, b - k); p.lineTo(l, b); p.lineTo(l + k, b)
-                            p.moveTo(r - k, b); p.lineTo(r, b); p.lineTo(r, b - k)
-                            canvas.drawPath(p, paint)
-                        }
-                        1 -> { // Zoom: magnifier with a plus, clearer than a text glyph
-                            canvas.drawCircle(cx - unit * .12f, cy - unit * .12f, unit * .62f, paint)
-                            canvas.drawLine(cx + unit * .28f, cy + unit * .28f, cx + unit * .82f, cy + unit * .82f, paint)
-                            canvas.drawLine(cx - unit * .42f, cy - unit * .12f, cx + unit * .18f, cy - unit * .12f, paint)
-                            canvas.drawLine(cx - unit * .12f, cy - unit * .42f, cx - unit * .12f, cy + unit * .18f, paint)
-                        }
-                        else -> { // Fill: a clean frame with solid center
-                            paint.style = Paint.Style.STROKE
-                            canvas.drawRoundRect(RectF(cx-unit, cy-unit, cx+unit, cy+unit), dp(2).toFloat(), dp(2).toFloat(), paint)
-                            paint.style = Paint.Style.FILL
-                            canvas.drawRect(RectF(cx-unit*.48f, cy-unit*.48f, cx+unit*.48f, cy+unit*.48f), paint)
-                            paint.style = Paint.Style.STROKE
-                        }
-                    }
+                "pip" -> {
+                    // Picture-in-Picture: main video frame with a smaller inset window.
+                    val left = cx - unit * 1.05f
+                    val top = cy - unit * .72f
+                    val right = cx + unit * 1.05f
+                    val bottom = cy + unit * .72f
+                    canvas.drawRoundRect(RectF(left, top, right, bottom), dp(2).toFloat(), dp(2).toFloat(), paint)
+                    val inset = RectF(cx - unit * .05f, cy + unit * .08f, right - unit * .12f, bottom - unit * .12f)
+                    canvas.drawRoundRect(inset, dp(1.5f).toFloat(), dp(1.5f).toFloat(), paint)
                 }
                 "rotate" -> {
                     val r = unit * .78f
@@ -994,18 +973,6 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         } catch (e: Exception) {
             Toast.makeText(this, "Could not share video: ${e.message ?: "unknown error"}", Toast.LENGTH_LONG).show()
         }
-    }
-    private fun toggleFit() {
-        fitMode = (fitMode + 1) % 3
-        playerView.resizeMode = when (fitMode) {
-            1 -> AspectRatioFrameLayout.RESIZE_MODE_ZOOM
-            2 -> AspectRatioFrameLayout.RESIZE_MODE_FILL
-            else -> AspectRatioFrameLayout.RESIZE_MODE_FIT
-        }
-        (fitButton as? ThemeIconView)?.fitMode = fitMode
-        fitButton.contentDescription = when (fitMode) { 1 -> "Zoom mode"; 2 -> "Fill mode"; else -> "Fit mode" }
-        fitButton.invalidate()
-        showControls()
     }
     override fun onResume() {
         super.onResume()
