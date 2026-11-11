@@ -610,16 +610,20 @@ async function runPlaylistDownloads() {
     const video = videos[i];
     const row = $("#playlistItems").children[i];
     const state = row?.querySelector(".playlist-video-state");
-    if (state) state.textContent = "Loading…";
-    $("#playlistProgressLabel").textContent = "Video " + (i+1) + " of " + videos.length + ": loading";
-    try { await YtDlp.updateBackgroundPlaylist({message: "Video " + (i+1) + " of " + videos.length + " · " + video.title}); } catch {}
+    if (state) state.textContent = "Getting details…";
+    $("#playlistProgressLabel").textContent = "Video " + (i+1) + " of " + videos.length + " · fetching details";
+    $("#playlistProgressValue").textContent = completed + "/" + videos.length;
+    $("#playlistProgressBar").classList.add("is-indeterminate");
+    try { await YtDlp.updateBackgroundPlaylist({message: "Getting details for video " + (i+1) + " of " + videos.length}); } catch {}
     try {
       const info = await readYouTubeDetails("https://www.youtube.com/watch?v=" + encodeURIComponent(video.videoId));
       if (playlistCancelRequested) break;
+      $("#playlistProgressBar").classList.remove("is-indeterminate");
       const format = selectPlaylistFormat(info.formats, requested);
       if (!format) throw new Error("No compatible MP4 format");
       if (row) row.querySelector(".playlist-video-title").textContent = info.title || video.title;
       if (state) state.textContent = "Downloading " + (format.quality || format.height + "p");
+      $("#playlistProgressLabel").textContent = "Video " + (i+1) + " of " + videos.length + " · downloading";
       progressWrap.hidden = false;
       progressBar.style.width = "0%";
       progressValue.textContent = "0%";
@@ -634,6 +638,7 @@ async function runPlaylistDownloads() {
       } catch {}
       if (playlistCancelRequested) break;
       failed++;
+      $("#playlistProgressBar").classList.remove("is-indeterminate");
       const reason = String(error?.message || error || "Unknown error").replace(/\\s+/g, " ").trim();
       const shortReason = reason.length > 34 ? reason.slice(0, 31) + "…" : reason;
       if (state) {
@@ -652,6 +657,7 @@ async function runPlaylistDownloads() {
     $("#playlistProgressLabel").textContent = "Downloaded " + completed + " · Failed " + failed;
   }
   try { await YtDlp.stopBackgroundPlaylist(); } catch {}
+  $("#playlistProgressBar").classList.remove("is-indeterminate");
   playlistRunning = false;
   start.disabled = false;
   start.textContent = playlistCancelRequested ? "Playlist cancelled" : "Playlist finished";
@@ -814,6 +820,21 @@ function showFormatChoices(info) {
   $("#formatStart").disabled = videos.length === 0;
   $("#formatStart").textContent = videos.length ? "Download MP4 video" : "No MP4 stream available";
   $("#formatModal").hidden = false;
+}
+const shell = document.querySelector(".app-shell");
+input.addEventListener("focus", () => {
+  shell?.classList.add("keyboard-open");
+  window.setTimeout(() => input.scrollIntoView({block:"start", behavior:"smooth"}), 180);
+});
+input.addEventListener("blur", () => {
+  window.setTimeout(() => {
+    if (!input.matches(":focus")) shell?.classList.remove("keyboard-open");
+  }, 220);
+});
+if (window.visualViewport) {
+  window.visualViewport.addEventListener("resize", () => {
+    if (input.matches(":focus")) shell?.classList.add("keyboard-open");
+  });
 }
 button.addEventListener("click", async () => {
   const url = validWebUrl(input.value);
