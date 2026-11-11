@@ -109,7 +109,17 @@ async function scanDeviceVideos() {
 
     // Step 2: Native MediaLibraryScanner.scan({ type: 'video' })
     const result = await callNative('scan', { type: 'video' });
-    const items = (result && (result.items || result.videos)) || (Array.isArray(result) ? result : []);
+    let items = (result && (result.items || result.videos)) || (Array.isArray(result) ? result : []);
+    // Merge Nice Downloader's own Downloads/NiceDownloader files, even when
+    // Android indexes them in the Downloads collection rather than Video collection.
+    try {
+      const downloaded = await callNative('listDownloadedVideos');
+      const saved = downloaded?.items || [];
+      const knownUris = new Set(items.map(x => String(x.uri || '')));
+      items = items.concat(saved.filter(x => x.uri && !knownUris.has(String(x.uri))));
+    } catch (downloadListError) {
+      console.warn('[Meraj Video] Nice Downloader library scan unavailable:', downloadListError);
+    }
 
     videos = items.map((x) => ({
       id: String(x.id || x.uri),
@@ -119,6 +129,8 @@ async function scanDeviceVideos() {
       title: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
       path: x.relativePath || x.path || 'Device Videos',
       folder: x.relativePath ? x.relativePath.split('/')[0] : 'Device Videos',
+      playlistName: x.playlistName || '',
+      isNiceDownload: String(x.id || '').startsWith('nice-downloader-'),
       duration: Number(x.duration || 0) > 1000 ? Math.floor(Number(x.duration) / 1000) : Number(x.duration || 0),
       size: Number(x.size || 0),
       thumbnail: null
@@ -161,7 +173,7 @@ async function fetchThumbnails() {
 // ========================================================
 // 3. PLAYBACK & PREPARE PLAYBACK BRIDGE
 // ========================================================
-async function playVideoAtIndex(index) {
+async function playVideoAtIndex(index, queueItems = videos) {
   if (index < 0 || index >= videos.length) return;
   currentVideoIndex = index;
   const item = videos[index];
@@ -171,7 +183,7 @@ async function playVideoAtIndex(index) {
   // Videos must be played by the native AndroidX Media3 ExoPlayer Activity.
   // Do not route content:// URIs through the HTML <video> element or copy them to cache.
   try {
-    const queue = videos.map((v) => ({
+    const queue = queueItems.map((v) => ({
       uri: v.uri,
       name: v.title || v.name || 'Video',
       mimeType: v.mimeType || v.type || 'video/*'
@@ -260,6 +272,7 @@ function resetControlsTimer() {
 // ========================================================
 function renderPlaylist() {
   const playlistEl = $('playlist');
+  const playlistGroupsEl = $('playlist-groups');
   const trackCountEl = $('track-count');
   const searchInput = $('video-search');
   if (!playlistEl) return;
@@ -272,6 +285,23 @@ function renderPlaylist() {
   });
 
   if (trackCountEl) trackCountEl.textContent = filtered.length;
+  if (playlistGroupsEl) {
+    const groups = new Map();
+    filtered.filter(v => v.playlistName).forEach(v => {
+      if (!groups.has(v.playlistName)) groups.set(v.playlistName, []);
+      groups.get(v.playlistName).push(v);
+    });
+    playlistGroupsEl.innerHTML = Array.from(groups.entries()).map(([name, entries]) => {
+      const safeName = String(name).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
+      return '<button type="button" class="downloaded-playlist-card" data-playlist-name="' + safeName + '"><span class="downloaded-playlist-icon">▤</span><span class="downloaded-playlist-copy"><strong>' + safeName + '</strong><small>' + entries.length + ' downloaded videos · Tap to play</small></span><span class="downloaded-playlist-play">▶</span></button>';
+    }).join('');
+    playlistGroupsEl.querySelectorAll('[data-playlist-name]').forEach(button => {
+      button.addEventListener('click', () => {
+        const group = filtered.filter(v => v.playlistName === button.dataset.playlistName);
+        if (group.length) playVideoAtIndex(videos.indexOf(group[0]), group);
+      });
+    });
+  }
 
   if (filtered.length === 0) {
     playlistEl.innerHTML = `<div class="playlist-empty">No videos found. Tap ⟳ Rescan to refresh.</div>`;
