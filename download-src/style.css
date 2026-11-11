@@ -195,3 +195,94 @@
 .app-shell.keyboard-open #urlInput{scroll-margin-top:8px}
 #playlistProgressBar.is-indeterminate{width:38%!important;animation:playlist-indeterminate 1.15s ease-in-out infinite alternate}
 @keyframes playlist-indeterminate{from{transform:translateX(0)}to{transform:translateX(160%)}}
+
+
+/* Nice Downloader — refined mobile-first professional interface */
+:root{
+  --nd-bg:#090a14;--nd-panel:#151629;--nd-panel-2:#101222;--nd-line:rgba(190,169,255,.16);
+  --nd-muted:#a29bb9;--nd-accent:#b78aff;--nd-cyan:#31d7e7;--nd-radius:20px;
+}
+html,body,#app{background:var(--nd-bg)}
+body{background:radial-gradient(ellipse at 85% 0%,rgba(111,54,180,.23),transparent 38%),radial-gradient(ellipse at 0% 55%,rgba(24,126,164,.10),transparent 35%),#090a14}
+.app-shell{background:linear-gradient(155deg,rgba(20,18,42,.98),rgba(8,9,20,.99) 62%);box-shadow:0 0 70px rgba(0,0,0,.34)}
+.topbar{background:rgba(13,12,29,.94);border-bottom:1px solid var(--nd-line);box-shadow:0 8px 24px rgba(0,0,0,.16)}
+.brand-mark{box-shadow:0 7px 24px rgba(158,76,255,.3)}
+.menu-item{height:44px;border:1px solid rgba(255,255,255,.09);background:rgba(255,255,255,.035);transition:background .18s,border-color .18s,transform .18s}
+.menu-item:active,.primary:active,.settings-secondary:active{transform:scale(.985)}
+.menu-item.active{background:linear-gradient(135deg,rgba(126,63,196,.34),rgba(46,66,145,.2));border-color:rgba(190,125,255,.62);box-shadow:inset 0 0 0 1px rgba(190,125,255,.1),0 5px 18px rgba(114,57,190,.12)}
+.stage{padding-top:14px}
+.page{gap:13px}
+.hero-banner{height:164px;min-height:150px;border-radius:23px;padding:20px 21px;background:linear-gradient(115deg,#101d50 0%,#32136a 57%,#17113c 100%);border-color:rgba(164,111,255,.62);box-shadow:0 16px 38px rgba(67,38,142,.2),inset 0 1px rgba(255,255,255,.12)}
+.hero-copy h1{font-size:clamp(27px,6vw,36px);line-height:1.02;letter-spacing:-1.5px}
+.hero-copy p{font-size:11px;max-width:230px;line-height:1.45}
+.section-heading h2{font-size:19px}
+.section-kicker,.eyebrow{letter-spacing:1.7px}
+.secure-chip{padding:7px 11px;font-size:9px;background:rgba(16,117,97,.16);border-color:rgba(65,218,186,.35)}
+.download-card,.settings-card{border-radius:21px;border:1px solid var(--nd-line);background:linear-gradient(145deg,rgba(27,25,52,.96),rgba(15,18,36,.98));box-shadow:0 15px 36px rgba(0,0,0,.22),inset 0 1px rgba(255,255,255,.035)}
+.download-card{padding:17px}
+.download-card>label,.browser-card>label{font-size:9px;letter-spacing:1.55px;margin-bottom:10px}
+.urlbox{height:51px;border-radius:14px;border-color:rgba(166,124,231,.52);background:rgba(8,10,25,.82);padding:0 11px;gap:9px}
+.urlbox input{font-size:12px}
+.urlbox:focus-within{border-color:#c18cff;box-shadow:0 0 0 3px rgba(169,94,255,.14),0 0 20px rgba(154,75,255,.08)}
+.paste-btn{width:35px;height:35px;border-radius:11px;background:rgba(127,74,166,.22);color:#ff9eae}
+.primary{height:49px;border-radius:14px;font-size:13px;letter-spacing:.15px;background:linear-gradient(105deg,#10bfd9 0%,#5a63f4 48%,#b02ce9 100%);box-shadow:0 9px 24px rgba(113,65,218,.28),inset 0 1px rgba(255,255,255,.22);transition:filter .18s,transform .18s}
+.primary:active{filter:brightness(1.08)}
+.status{font-size:10px;line-height:1.5;color:#a39bb9;margin-top:10px}
+.progress-wrap{padding:10px 11px;border-radius:12px;background:rgba(7,9,22,.42);border:1px solid rgba(255,255,255,.07)}
+.progress-head{font-size:10px}
+.progress-track{height:7px;background:#302a48}
+.progress-track div{box-shadow:0 0 12px rgba(184,77,255,.25)}
+.platform-strip{border-radius:15px;padding:11px 13px;background:rgba(24,23,47,.82);border-color:var(--nd-line)}
+.platform-title b{font-size:10px}.platform-title small{font-size:9px}
+.page-heading h2{font-size:30px;letter-spacing:-1.2px}
+.page-heading p{font-size:12px;color:#a6a0b9}
+.download-stats{gap:11px}
+.download-stats>div{padding:13px;border-radius:16px;background:linear-gradient(145deg,rgba(30,28,58,.9),rgba(17,20,39,.94));border-color:var(--nd-line)}
+.download-stats b{font-size:16px}
+.download-stats small{font-size:9px}
+.stat-icon{width:38px;height:38px;border-radius:12px}
+.manager-card{min-height:190px;padding:20px;gap:9px}
+.manager-card b{font-size:14px}
+.manager-card small{font-size:10px;line-height:1.5}
+.manager-file-icon{width:50px;height:50px;border-radius:15px}
+.manager-progress{height:7px;width:86%}
+.storage-note{font-size:10px;line-height:1.5;align-items:flex-start}
+.storage-note svg{flex-shrink:0;margin-top:1px}
+.bottom-nav{background:rgba(13,12,29,.96);border-top:1px solid var(--nd-line)}
+.nav-item{transition:color .18s,background .18s}
+.nav-item.active{background:linear-gradient(145deg,rgba(106,47,158,.27),rgba(48,42,112,.25));box-shadow:inset 0 0 0 1px rgba(171,105,255,.27)}
+.settings-card{padding:17px}
+.settings-title b{font-size:13px}
+.settings-title small,.settings-help,.settings-info>p{font-size:10px;line-height:1.55}
+.storage-location{border-radius:14px;background:rgba(7,9,22,.55);border-color:rgba(255,255,255,.09)}
+.storage-location b{font-size:13px}
+.settings-secondary{height:42px;border-radius:12px;border-color:rgba(172,137,224,.3);background:rgba(48,37,74,.65);font-size:11px}
+.format-modal{border-radius:24px;border-color:rgba(177,130,255,.52);background:linear-gradient(155deg,#211a3c 0%,#111528 78%);box-shadow:0 28px 90px rgba(0,0,0,.65),0 0 36px rgba(116,62,196,.18)}
+.format-choice{border-radius:14px;min-height:62px;background:rgba(9,13,30,.8);border-color:rgba(255,255,255,.1)}
+.format-choice:has(input:checked){border-color:#b36bff;background:linear-gradient(100deg,rgba(89,43,139,.45),rgba(42,45,101,.48));box-shadow:inset 0 0 0 1px rgba(179,107,255,.2)}
+.format-choice b{font-size:14px}.format-choice small{font-size:10px}
+.playlist-modal{gap:10px}
+.playlist-item{min-height:48px;border-radius:12px;background:rgba(8,12,29,.75);border-color:rgba(255,255,255,.09)}
+.playlist-video-title{font-size:11px}
+.playlist-video-state{font-size:9px}
+.cookie-btn,.cookie-clear{height:35px;border-radius:10px;font-size:10px}
+button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid #b987ff;outline-offset:2px}
+.page#page-downloads{justify-content:flex-start;overflow-y:auto;overflow-x:hidden;padding:7px 2px 16px;scrollbar-width:thin;overscroll-behavior:contain}
+@media(max-height:760px){
+  .stage{padding-top:9px;padding-bottom:8px}
+  .page{gap:9px}
+  .hero-banner{height:143px;min-height:132px;padding:16px 18px}
+  .download-card{padding:14px}
+}
+@media(max-height:650px){
+  .hero-banner{height:120px;min-height:114px}
+  .download-card{padding:11px}
+  .urlbox{height:43px}
+  .primary{height:43px}
+}
+@media(max-width:380px){
+  .hero-banner{padding:15px}
+  .download-card{padding:13px}
+  .page-heading h2{font-size:27px}
+  .menu-item{gap:6px}
+}
