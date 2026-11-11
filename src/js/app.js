@@ -62,6 +62,7 @@ window.addEventListener('message', async (event) => {
     switch (message.action) {
       case 'permission': reply.result = await VideoPermissionBridge.requestIfNeeded(); break;
       case 'scan': reply.result = await VideoScannerBridge.scan({ type: message.payload?.type || 'video' }); break;
+      case 'listDownloadedVideos': reply.result = await YtDlpBridge.listDownloadedVideos(); break;
       case 'launchVideo': reply.result = await VideoScannerBridge.launchVideo(message.payload || {}); break;
       case 'preparePlayback': reply.result = await VideoScannerBridge.preparePlayback(message.payload || {}); break;
       case 'getThumbnail': reply.result = await VideoScannerBridge.getThumbnail(message.payload || {}); break;
