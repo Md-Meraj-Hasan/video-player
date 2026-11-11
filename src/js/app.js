@@ -27,6 +27,31 @@ if (shareAppButton) { shareAppButton.setAttribute('aria-label','Share selected a
 const videoFrameBridge = document.getElementById('videoPlayerFrame');
 const VideoPermissionBridge = registerPlugin('MediaPermission');
 const VideoScannerBridge = registerPlugin('MediaLibraryScanner');
+const YtDlpBridge = registerPlugin('YtDlp');
+const downloaderFrame = document.getElementById('downloadCenterFrame');
+YtDlpBridge.addListener('downloadProgress', event => {
+  downloaderFrame?.contentWindow?.postMessage({ type: 'nice-downloader-native-event', eventName: 'downloadProgress', data: event }, '*');
+}).catch(error => console.warn('Downloader progress bridge unavailable', error));
+const downloaderActions = new Set([
+  'httpRequest','downloadStream','getStorageStatus','requestStoragePermission','openAppSettings',
+  'startBackgroundPlaylist','updateBackgroundPlaylist','stopBackgroundPlaylist','getPlaylistCancelState','cancelDownload'
+]);
+window.addEventListener('message', async event => {
+  if (!downloaderFrame || event.source !== downloaderFrame.contentWindow) return;
+  const message = event.data;
+  if (message?.type === 'nice-downloader-switch-home') { page('home'); return; }
+  if (!message || message.bridge !== 'nice-downloader-native' || !message.requestId || !downloaderActions.has(message.action)) return;
+  const reply = { bridge: 'nice-downloader-native-result', requestId: message.requestId };
+  try {
+    reply.result = await YtDlpBridge[message.action](message.payload || {});
+    reply.ok = true;
+  } catch (error) {
+    reply.ok = false;
+    reply.error = String(error?.message || error || 'Native downloader operation failed');
+  }
+  event.source.postMessage(reply, '*');
+});
+
 window.addEventListener('message', async (event) => {
   if (!videoFrameBridge || event.source !== videoFrameBridge.contentWindow) return;
   const message = event.data;
