@@ -116,7 +116,10 @@ async function scanDeviceVideos() {
       const downloaded = await callNative('listDownloadedVideos');
       const saved = downloaded?.items || [];
       const knownUris = new Set(items.map(x => String(x.uri || '')));
-      items = items.concat(saved.filter(x => x.uri && !knownUris.has(String(x.uri))));
+      const knownFiles = new Set(items.map(x => String(x.name || '').toLowerCase() + '|' + String(x.size || 0)));
+      items = items.concat(saved.filter(x => x.uri &&
+        !knownUris.has(String(x.uri)) &&
+        !knownFiles.has(String(x.name || '').toLowerCase() + '|' + String(x.size || 0))));
     } catch (downloadListError) {
       console.warn('[Meraj Video] Nice Downloader library scan unavailable:', downloadListError);
     }
@@ -130,6 +133,7 @@ async function scanDeviceVideos() {
       path: x.relativePath || x.path || 'Device Videos',
       folder: x.relativePath ? x.relativePath.split('/')[0] : 'Device Videos',
       playlistName: x.playlistName || '',
+      playlistIndex: Number(x.playlistIndex ?? -1),
       isNiceDownload: String(x.id || '').startsWith('nice-downloader-'),
       duration: Number(x.duration || 0) > 1000 ? Math.floor(Number(x.duration) / 1000) : Number(x.duration || 0),
       size: Number(x.size || 0),
@@ -292,6 +296,7 @@ function renderPlaylist() {
       groups.get(v.playlistName).push(v);
     });
     playlistGroupsEl.innerHTML = Array.from(groups.entries()).map(([name, entries]) => {
+      entries.sort((a,b) => (a.playlistIndex < 0 ? 999999 : a.playlistIndex) - (b.playlistIndex < 0 ? 999999 : b.playlistIndex));
       const safeName = String(name).replace(/[&<>"']/g, ch => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[ch]));
       return '<button type="button" class="downloaded-playlist-card" data-playlist-name="' + safeName + '"><span class="downloaded-playlist-icon">▤</span><span class="downloaded-playlist-copy"><strong>' + safeName + '</strong><small>' + entries.length + ' downloaded videos · Tap to play</small></span><span class="downloaded-playlist-play">▶</span></button>';
     }).join('');
