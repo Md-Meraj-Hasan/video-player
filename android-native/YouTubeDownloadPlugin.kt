@@ -8,6 +8,7 @@ import android.provider.Settings
 import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
+import com.getcapacitor.JSArray
 import com.getcapacitor.JSObject
 import com.getcapacitor.Plugin
 import com.getcapacitor.PluginCall
@@ -107,12 +108,11 @@ class YouTubeDownloadPlugin : Plugin() {
             MediaStore.MediaColumns.SIZE,
             MediaStore.MediaColumns.MIME_TYPE,
             MediaStore.MediaColumns.DATE_ADDED,
-            MediaStore.MediaColumns.RELATIVE_PATH,
-            MediaStore.MediaColumns.DESCRIPTION
+            MediaStore.MediaColumns.RELATIVE_PATH
         )
         try {
-            val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} = ? AND ${MediaStore.MediaColumns.MIME_TYPE} LIKE ?"
-            val args = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/", "video/%")
+            val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.MIME_TYPE} LIKE ?"
+            val args = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/%", "video/%")
             getContext().contentResolver.query(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args,
                 "${MediaStore.MediaColumns.DATE_ADDED} DESC"
@@ -122,23 +122,24 @@ class YouTubeDownloadPlugin : Plugin() {
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
                 val dateCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_ADDED)
-                val descCol = cursor.getColumnIndex(MediaStore.MediaColumns.DESCRIPTION)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
                     val uri = android.content.ContentUris.withAppendedId(MediaStore.Downloads.EXTERNAL_CONTENT_URI, id)
                     val item = JSObject()
                     item.put("id", "nice-downloader-$id")
                     item.put("uri", uri.toString())
-                    item.put("name", cursor.getString(nameCol) ?: "Downloaded video")
+                    val storedName = cursor.getString(nameCol) ?: "Downloaded video"
+                    val playlistIndexMatch = Regex("^(\\d{4}) - (.*)$").find(storedName)
+                    item.put("name", playlistIndexMatch?.groupValues?.get(2) ?: storedName)
                     item.put("size", cursor.getLong(sizeCol))
                     item.put("mimeType", cursor.getString(mimeCol) ?: "video/mp4")
                     item.put("type", cursor.getString(mimeCol) ?: "video/mp4")
                     item.put("duration", 0)
-                    item.put("relativePath", Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/")
-                    val playlistMeta = if (descCol >= 0) cursor.getString(descCol).orEmpty() else ""
-                    val playlistMatch = Regex("^NiceDownloaderPlaylist:(\\d+):(.*)$").find(playlistMeta)
-                    item.put("playlistName", playlistMatch?.groupValues?.get(2))
-                    item.put("playlistIndex", playlistMatch?.groupValues?.get(1)?.toIntOrNull() ?: -1)
+                    val relativePath = cursor.getString(cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.RELATIVE_PATH)) ?: ""
+                    item.put("relativePath", relativePath)
+                    val folderName = relativePath.removeSuffix("/").substringAfterLast("/")
+                    item.put("playlistName", folderName.takeIf { it.isNotBlank() && it != "NiceDownloader" })
+                    item.put("playlistIndex", playlistIndexMatch?.groupValues?.get(1)?.toIntOrNull() ?: -1)
                     item.put("dateAdded", if (dateCol >= 0) cursor.getLong(dateCol) else 0L)
                     items.put(item)
                 }
@@ -377,12 +378,17 @@ class YouTubeDownloadPlugin : Plugin() {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
                     put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    call.getString("playlistName")?.takeIf { it.isNotBlank() }?.let {
-                        val index = call.getInt("playlistIndex", -1)
-                        put(MediaStore.MediaColumns.DESCRIPTION, "NiceDownloaderPlaylist:" + index + ":" + it.take(180))
-                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                        put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader")
+                        val playlistName = call.getString("playlistName")?.takeIf { it.isNotBlank() }
+                        val playlistIndex = call.getInt("playlistIndex", -1) ?: -1
+                        val safePlaylistFolder = playlistName?.replace(Regex("[\\\\/:*?\"<>|\\r\\n]"), "_")?.trim()?.take(80)
+                        val storedDisplayName = if (safePlaylistFolder != null && playlistIndex >= 0)
+                            String.format(Locale.US, "%04d - %s", playlistIndex + 1, safeName)
+                        else safeName
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, storedDisplayName)
+                        put(MediaStore.MediaColumns.RELATIVE_PATH, if (safePlaylistFolder != null)
+                            Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/" + safePlaylistFolder + "/"
+                        else Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader")
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
                 }
