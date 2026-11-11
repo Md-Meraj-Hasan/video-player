@@ -34,7 +34,7 @@ YtDlpBridge.addListener('downloadProgress', event => {
 }).catch(error => console.warn('Downloader progress bridge unavailable', error));
 const downloaderActions = new Set([
   'httpRequest','downloadStream','getStorageStatus','requestStoragePermission','openAppSettings',
-  'startBackgroundPlaylist','updateBackgroundPlaylist','stopBackgroundPlaylist','getPlaylistCancelState','cancelDownload'
+  'startBackgroundPlaylist','updateBackgroundPlaylist','stopBackgroundPlaylist','getPlaylistCancelState','cancelDownload','listDownloadedVideos'
 ]);
 window.addEventListener('message', async event => {
   if (!downloaderFrame || event.source !== downloaderFrame.contentWindow) return;
