@@ -100,19 +100,16 @@ async function scanDeviceVideos() {
   if (emptyDesc) emptyDesc.textContent = "Please wait while local files are loaded.";
 
   try {
-    // Step 1: Request permission
+    // Device videos need media permission; Nice Downloader's own saved files do not.
     const perm = await callNative('permission');
-    if (perm && perm.granted === false) {
-      if (emptyTitle) emptyTitle.textContent = "Permission Needed";
-      if (emptyDesc) emptyDesc.textContent = "Please grant video/media permission in app settings.";
-      return;
+    const permissionDenied = !!(perm && perm.granted === false);
+    let items = [];
+    if (!permissionDenied) {
+      const result = await callNative('scan', { type: 'video' });
+      items = (result && (result.items || result.videos)) || (Array.isArray(result) ? result : []);
     }
-
-    // Step 2: Native MediaLibraryScanner.scan({ type: 'video' })
-    const result = await callNative('scan', { type: 'video' });
-    let items = (result && (result.items || result.videos)) || (Array.isArray(result) ? result : []);
-    // Merge Nice Downloader's own Downloads/NiceDownloader files, even when
-    // Android indexes them in the Downloads collection rather than Video collection.
+    // Always include the app's own Download/NiceDownloader files, even if
+    // the user has not granted access to the rest of device media.
     try {
       const downloaded = await callNative('listDownloadedVideos');
       const saved = downloaded?.items || [];
@@ -148,8 +145,10 @@ async function scanDeviceVideos() {
       renderPlaylist();
       fetchThumbnails();
     } else {
-      if (emptyTitle) emptyTitle.textContent = "No videos found";
-      if (emptyDesc) emptyDesc.textContent = "No video files were detected on this device storage.";
+      if (emptyTitle) emptyTitle.textContent = permissionDenied ? "Permission Needed" : "No videos found";
+      if (emptyDesc) emptyDesc.textContent = permissionDenied
+        ? "Nice Downloader files are still shown when available. Grant video permission to browse other device videos."
+        : "No video files were detected on this device storage.";
     }
   } catch (err) {
     console.error('[Meraj Video] Scan error:', err);
