@@ -184,3 +184,14 @@
 .playlist-exit-modal .primary,
 .playlist-exit-modal .settings-secondary{width:100%;min-height:44px;flex-shrink:0}
 .playlist-exit-modal .settings-secondary{text-align:center}
+
+
+/* Keyboard-friendly link entry: move the URL field to the top while typing. */
+.app-shell.keyboard-open .stage{overflow-y:auto;align-items:stretch;padding-top:8px;padding-bottom:12px}
+.app-shell.keyboard-open #page-home{height:auto;min-height:100%;justify-content:flex-start;overflow:visible;gap:8px}
+.app-shell.keyboard-open #page-home .hero-banner,
+.app-shell.keyboard-open #page-home .section-heading{display:none}
+.app-shell.keyboard-open #page-home .download-card{order:-1;flex-shrink:0;margin-top:0}
+.app-shell.keyboard-open #urlInput{scroll-margin-top:8px}
+#playlistProgressBar.is-indeterminate{width:38%!important;animation:playlist-indeterminate 1.15s ease-in-out infinite alternate}
+@keyframes playlist-indeterminate{from{transform:translateX(0)}to{transform:translateX(160%)}}
