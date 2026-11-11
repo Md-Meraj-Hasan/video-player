@@ -43,11 +43,12 @@ if (mainActivity) {
   const dir = path.join(javaRoot, ...packageName.split('.'));
   fs.mkdirSync(dir, { recursive: true });
   mainActivity = path.join(dir, 'MainActivity.kt');
-  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}\n`);
+  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)
+        registerPlugin(YouTubeDownloadPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}\n`);
 }
 
 const activityDir = path.dirname(mainActivity);
-for (const name of ['MediaPermissionPlugin.kt', 'MediaLibraryScannerPlugin.kt', 'MerajMediaPlayerPlugin.kt', 'MerajPlaybackService.kt', 'NativeVideoPlayerActivity.kt']) {
+for (const name of ['MediaPermissionPlugin.kt', 'MediaLibraryScannerPlugin.kt', 'MerajMediaPlayerPlugin.kt', 'MerajPlaybackService.kt', 'NativeVideoPlayerActivity.kt', 'YouTubeDownloadPlugin.kt', 'YouTubeDownloadService.kt']) {
   const source = path.join(nativeRoot, name);
   if (!fs.existsSync(source)) throw new Error(`Required native plugin source missing: ${source}`);
   let code = fs.readFileSync(source, 'utf8');
@@ -72,7 +73,8 @@ if (!main.includes('MediaPermissionPlugin::class.java') && !main.includes('Media
     const onCreate = /(?:@Override\s*)?protected\s+void\s+onCreate\s*\(\s*Bundle\s+savedInstanceState\s*\)\s*\{/.exec(main);
     if (onCreate) {
       const insertAt = onCreate.index + onCreate[0].length;
-      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);' + main.slice(insertAt);
+      main = main.slice(0, insertAt) + '\n        registerPlugin(MediaPermissionPlugin.class);\n        registerPlugin(MediaLibraryScannerPlugin.class);\n        registerPlugin(MerajMediaPlayerPlugin.class);
+        registerPlugin(YouTubeDownloadPlugin.class);' + main.slice(insertAt);
     } else {
       if (!/import\s+android\.os\.Bundle\s*;/.test(main)) {
         const packageMatch = /package\s+[A-Za-z0-9_.]+\s*;/.exec(main);
@@ -100,6 +102,11 @@ fs.writeFileSync(mainActivity, main);
 
 let xml = fs.readFileSync(manifest, 'utf8');
 const permissions = [
+  '<uses-permission android:name="android.permission.INTERNET" />',
+  '<uses-permission android:name="android.permission.FOREGROUND_SERVICE" />',
+  '<uses-permission android:name="android.permission.FOREGROUND_SERVICE_DATA_SYNC" />',
+  '<uses-permission android:name="android.permission.POST_NOTIFICATIONS" />',
+  '<uses-permission android:name="android.permission.WRITE_EXTERNAL_STORAGE" android:maxSdkVersion="28" />',
   '<uses-permission android:name="android.permission.READ_MEDIA_AUDIO" />',
   '<uses-permission android:name="android.permission.READ_MEDIA_VIDEO" />',
   '<uses-permission android:name="android.permission.READ_EXTERNAL_STORAGE" android:maxSdkVersion="32" />'
@@ -162,6 +169,9 @@ for (const permission of servicePermissions) {
 }
 if (!xml.includes('NativeVideoPlayerActivity')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <activity android:name=".NativeVideoPlayerActivity" android:exported="false" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true" />`);
+}
+if (!xml.includes('YouTubeDownloadService')) {
+  xml = xml.replace(/<application\\b[^>]*>/, match => match + `\\n        <service android:name=".YouTubeDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />`);
 }
 if (!xml.includes('MerajPlaybackService')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <service android:name=".MerajPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">\n            <intent-filter>\n                <action android:name="androidx.media3.session.MediaSessionService" />\n            </intent-filter>\n        </service>`);
