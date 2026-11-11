@@ -135,7 +135,10 @@ class YouTubeDownloadPlugin : Plugin() {
                     item.put("type", cursor.getString(mimeCol) ?: "video/mp4")
                     item.put("duration", 0)
                     item.put("relativePath", Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/")
-                    item.put("playlistName", if (descCol >= 0) cursor.getString(descCol)?.removePrefix("NiceDownloaderPlaylist:")?.takeIf { it != cursor.getString(descCol) } else null)
+                    val playlistMeta = if (descCol >= 0) cursor.getString(descCol).orEmpty() else ""
+                    val playlistMatch = Regex("^NiceDownloaderPlaylist:(\\d+):(.*)$").find(playlistMeta)
+                    item.put("playlistName", playlistMatch?.groupValues?.get(2))
+                    item.put("playlistIndex", playlistMatch?.groupValues?.get(1)?.toIntOrNull() ?: -1)
                     item.put("dateAdded", if (dateCol >= 0) cursor.getLong(dateCol) else 0L)
                     items.put(item)
                 }
@@ -374,7 +377,10 @@ class YouTubeDownloadPlugin : Plugin() {
                 val values = ContentValues().apply {
                     put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
                     put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
-                    call.getString("playlistName")?.takeIf { it.isNotBlank() }?.let { put(MediaStore.MediaColumns.DESCRIPTION, "NiceDownloaderPlaylist:" + it.take(180)) }
+                    call.getString("playlistName")?.takeIf { it.isNotBlank() }?.let {
+                        val index = call.getInt("playlistIndex", -1)
+                        put(MediaStore.MediaColumns.DESCRIPTION, "NiceDownloaderPlaylist:" + index + ":" + it.take(180))
+                    }
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         put(MediaStore.MediaColumns.RELATIVE_PATH, Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader")
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
