@@ -685,7 +685,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                     val bottom = cy + unit * .72f
                     canvas.drawRoundRect(RectF(left, top, right, bottom), dp(2).toFloat(), dp(2).toFloat(), paint)
                     val inset = RectF(cx - unit * .05f, cy + unit * .08f, right - unit * .12f, bottom - unit * .12f)
-                    canvas.drawRoundRect(inset, dp(1.5f).toFloat(), dp(1.5f).toFloat(), paint)
+                    canvas.drawRoundRect(inset, dp(2).toFloat(), dp(2).toFloat(), paint)
                 }
                 "rotate" -> {
                     val r = unit * .78f
