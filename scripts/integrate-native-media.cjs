@@ -43,7 +43,7 @@ if (mainActivity) {
   const dir = path.join(javaRoot, ...packageName.split('.'));
   fs.mkdirSync(dir, { recursive: true });
   mainActivity = path.join(dir, 'MainActivity.kt');
-  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n        registerPlugin(MerajMediaPlayerPlugin::class.java)
+  fs.writeFileSync(mainActivity, `package ${packageName}\n\nimport android.os.Bundle\nimport com.getcapacitor.BridgeActivity\n\nclass MainActivity : BridgeActivity() {\n    override fun onCreate(savedInstanceState: Bundle?) {\n        registerPlugin(MediaPermissionPlugin::class.java)\n        registerPlugin(MediaLibraryScannerPlugin::class.java)\n                registerPlugin(MerajMediaPlayerPlugin::class.java)
         registerPlugin(YouTubeDownloadPlugin::class.java)\n        super.onCreate(savedInstanceState)\n    }\n}\n`);
 }
 
@@ -171,7 +171,8 @@ if (!xml.includes('NativeVideoPlayerActivity')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <activity android:name=".NativeVideoPlayerActivity" android:exported="false" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true" />`);
 }
 if (!xml.includes('YouTubeDownloadService')) {
-  xml = xml.replace(/<application\\b[^>]*>/, match => match + `\\n        <service android:name=".YouTubeDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />`);
+  xml = xml.replace(/<application\\b[^>]*>/, match => `${match}
+        <service android:name=".YouTubeDownloadService" android:exported="false" android:foregroundServiceType="dataSync" />`);
 }
 if (!xml.includes('MerajPlaybackService')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <service android:name=".MerajPlaybackService" android:foregroundServiceType="mediaPlayback" android:exported="true">\n            <intent-filter>\n                <action android:name="androidx.media3.session.MediaSessionService" />\n            </intent-filter>\n        </service>`);
