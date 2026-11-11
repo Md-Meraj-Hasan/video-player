@@ -628,7 +628,7 @@ async function runPlaylistDownloads() {
       progressBar.style.width = "0%";
       progressValue.textContent = "0%";
       progressLabel.textContent = "Playlist " + (i+1) + "/" + videos.length;
-      await YtDlp.downloadStream({streamUrl:format.url,title:info.title || video.title,extension:"mp4",mimeType:"video/mp4"});
+      await YtDlp.downloadStream({streamUrl:format.url,title:info.title || video.title,extension:"mp4",mimeType:"video/mp4",playlistName:activePlaylist.title});
       completed++;
       if (state) state.textContent = "✓ Saved";
     } catch (error) {
