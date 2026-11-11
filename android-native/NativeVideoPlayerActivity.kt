@@ -517,12 +517,6 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         val leftGroup = LinearLayout(this).apply { orientation = LinearLayout.HORIZONTAL; gravity = Gravity.CENTER }
         val rewind = skipButton(true)
         leftGroup.addView(rewind, LinearLayout.LayoutParams(smallControl, smallControl).apply { leftMargin = dp(if (landscapeControls) 8 else 1); rightMargin = dp(if (landscapeControls) 8 else 1) })
-        pipButton = ThemeIconView(this, "pip").apply {
-            background = toolBackground()
-            elevation = dp(5).toFloat()
-            contentDescription = "Enter Picture-in-Picture"
-            setOnClickListener { enterPictureInPictureForCurrentVideo(); showControls() }
-        }
         rotateButton = ThemeIconView(this, "rotate").apply {
             background = toolBackground()
             elevation = dp(5).toFloat()
