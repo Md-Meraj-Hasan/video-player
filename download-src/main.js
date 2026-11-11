@@ -28,7 +28,21 @@ window.addEventListener("message", event => {
 function callNativeDownloader(action, payload = {}) {
   return new Promise((resolve, reject) => {
     const requestId = "nice-downloader-" + (++nativeRequestSequence);
-    nativePending.set(requestId, { resolve, reject });
+    const timeoutMs = action === "downloadStream" ? 30 * 60 * 1000
+      : action === "httpRequest" ? 90000
+      : action === "requestStoragePermission" ? 20000
+      : action === "getStorageStatus" ? 8000
+      : 15000;
+    const timer = setTimeout(() => {
+      nativePending.delete(requestId);
+      reject(new Error(action === "getStorageStatus"
+        ? "Storage check timed out. You can still try downloading; Android will manage the save location."
+        : "Android downloader did not respond to " + action + ". Please reopen the Download section and try again."));
+    }, timeoutMs);
+    nativePending.set(requestId, {
+      resolve: value => { clearTimeout(timer); resolve(value); },
+      reject: error => { clearTimeout(timer); reject(error); }
+    });
     window.parent.postMessage({ bridge: "nice-downloader-native", requestId, action, payload }, "*");
   });
 }
