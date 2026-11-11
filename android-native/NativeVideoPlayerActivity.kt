@@ -1132,9 +1132,10 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
 
     private fun buildPictureInPictureParams(ratio: Rational): PictureInPictureParams {
         val builder = PictureInPictureParams.Builder().setAspectRatio(ratio)
-        // Android 12+ expanded PiP is a wide canvas, so expanding/zooming uses full width.
+        // Keep expanded PiP at the actual video's aspect ratio too. A forced 16:9
+        // expanded canvas adds black bars around portrait Shorts (9:16) videos.
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            builder.setExpandedAspectRatio(Rational(16, 9))
+            builder.setExpandedAspectRatio(ratio)
         }
         return builder.build()
     }
