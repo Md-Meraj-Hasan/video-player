@@ -58,10 +58,11 @@
       </section>
 
       <section id="player-screen" class="screen player-screen">
+        <div id="video-library-fixed-header" class="video-library-fixed-header">
         <div class="library-topline">
           <div class="library-title-wrap">
             <p class="eyebrow" id="player-kicker">YOUR LIBRARY</p>
-            <h2 id="player-title">Video Library</h2>
+            <h2 id="player-title">Nice Video Player</h2>
             <p id="player-subtitle">Your videos, stored on this device.</p>
           </div>
           <div class="library-head-actions" style="display:flex!important;align-items:center!important;gap:8px!important;flex-shrink:0!important;position:relative!important;">
@@ -80,13 +81,13 @@
             <span aria-hidden="true">⌕</span>
             <input id="video-search" type="search" placeholder="Search videos…" autocomplete="off" aria-label="Search videos">
           </label>
-          <div class="library-tabs" role="tablist" aria-label="Video library view">
-            <button id="video-tab-all" class="library-tab selected" type="button" role="tab" aria-selected="true">▣ Videos</button>
-            <button id="video-tab-folders" class="library-tab" type="button" role="tab" aria-selected="false">▤ Folders</button>
-          </div>
         </div>
-
         <div id="video-folder-strip" class="video-folder-strip" aria-label="Video folders" role="tablist"></div>
+        <div class="library-tabs" role="tablist" aria-label="Video library view">
+          <button id="video-tab-all" class="library-tab selected" type="button" role="tab" aria-selected="true">▣ Videos</button>
+          <button id="video-tab-folders" class="library-tab" type="button" role="tab" aria-selected="false">▤ Folders</button>
+        </div>
+      </div>
 
         <div id="audio-library-tools" class="audio-library-tools hidden" aria-hidden="true">
           <button id="show-all-songs" type="button"></button>
