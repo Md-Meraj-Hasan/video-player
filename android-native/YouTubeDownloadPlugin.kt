@@ -111,8 +111,10 @@ class YouTubeDownloadPlugin : Plugin() {
             MediaStore.MediaColumns.RELATIVE_PATH
         )
         try {
-            val selection = "${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ? AND ${MediaStore.MediaColumns.MIME_TYPE} LIKE ?"
-            val args = arrayOf(Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/%", "video/%")
+            // Match the base folder (single downloads) and playlist subfolders.
+            val basePath = Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader"
+            val selection = "(${MediaStore.MediaColumns.RELATIVE_PATH} = ? OR ${MediaStore.MediaColumns.RELATIVE_PATH} LIKE ?) AND ${MediaStore.MediaColumns.MIME_TYPE} LIKE ?"
+            val args = arrayOf(basePath, "$basePath/%", "video/%")
             getContext().contentResolver.query(
                 MediaStore.Downloads.EXTERNAL_CONTENT_URI, projection, selection, args,
                 "${MediaStore.MediaColumns.DATE_ADDED} DESC"
