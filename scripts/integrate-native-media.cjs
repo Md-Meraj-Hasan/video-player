@@ -174,7 +174,7 @@ for (const permission of servicePermissions) {
   if (!xml.includes(permission)) xml = xml.replace(/<manifest\b[^>]*>/, match => `${match}\n    ${permission}`);
 }
 if (!xml.includes('NativeVideoPlayerActivity')) {
-  xml = xml.replace(/<application\\b[^>]*>/, match => `${match}
+  xml = xml.replace(/<application\b[^>]*>/, match => `${match}
         <activity android:name=".NativeVideoPlayerActivity" android:exported="true" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true">
             <intent-filter>
                 <action android:name="android.intent.action.VIEW" />
