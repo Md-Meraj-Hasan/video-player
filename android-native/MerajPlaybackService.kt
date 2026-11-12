@@ -89,18 +89,32 @@ internal object MerajAudioEffects {
     @Volatile private var effect: Equalizer? = null
     @Volatile private var loudness: LoudnessEnhancer? = null
     @Volatile private var boostTarget = 0
+    @Volatile private var activePreset: String? = null
 
     @Synchronized fun attach(id: Int) {
+        if (id <= 0) return
+        // Media3 can report READY, playing and transition callbacks for the same
+        // session. Recreating effects on every callback can stack/leak audio effects.
+        if (sessionId == id && effect != null) return
         try {
-            effect?.release()
+            try { effect?.release() } catch (_: Exception) {}
+            try { loudness?.release() } catch (_: Exception) {}
             effect = null
+            loudness = null
             sessionId = id
-            if (id > 0) {
-                effect = Equalizer(0, id).apply { enabled = true }
-                loudness = LoudnessEnhancer(id).apply { setTargetGain(boostTarget); enabled = boostTarget > 0 }
+
+            // Do not turn on a platform EQ preset implicitly: some devices apply
+            // a non-flat default curve which can make normal playback quieter.
+            val newEffect = Equalizer(0, id)
+            newEffect.enabled = false
+            effect = newEffect
+            loudness = LoudnessEnhancer(id).apply {
+                setTargetGain(boostTarget)
+                enabled = boostTarget > 0
             }
+            activePreset?.let { apply(it) }
         } catch (e: Exception) {
-            android.util.Log.e("MerajMediaPlayer", "Could not attach Equalizer to session $id", e)
+            android.util.Log.e("MerajMediaPlayer", "Could not attach audio effects to session $id", e)
         }
     }
 
@@ -136,6 +150,7 @@ internal object MerajAudioEffects {
             } ?: return false
             eq.usePreset(idx.toShort())
             eq.enabled = true
+            activePreset = key
             true
         } catch (e: Exception) {
             android.util.Log.e("MerajMediaPlayer", "Could not apply Equalizer preset $key", e)
@@ -149,6 +164,7 @@ internal object MerajAudioEffects {
         effect = null
         loudness = null
         boostTarget = 0
+        activePreset = null
         sessionId = 0
     }
 }
