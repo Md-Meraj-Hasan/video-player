@@ -101,6 +101,8 @@ class MerajMediaPlayerPlugin : Plugin() {
             }
             if (mediaItems.isEmpty()) { call.reject("No playable local media URIs were supplied."); return@withController }
             c.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
+            val repeatOne = call.getBoolean("repeatOne", false) ?: false
+            c.repeatMode = if (repeatOne) Player.REPEAT_MODE_ONE else Player.REPEAT_MODE_OFF
             c.prepare()
             c.playWhenReady = true
             c.play()
