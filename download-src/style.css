@@ -286,3 +286,23 @@ button:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid 
   .page-heading h2{font-size:27px}
   .menu-item{gap:6px}
 }
+
+/* Download library: persistent list of every saved Nice Downloader video. */
+.download-list-heading{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:4px 1px 0;flex-shrink:0}
+.download-list-heading h3{font-size:15px;line-height:1.2;margin:3px 0 0}
+.download-refresh{width:36px;height:36px;border:1px solid #69518f;border-radius:11px;background:#211a37;color:#d7b5ff;display:grid;place-items:center}
+.download-refresh svg{width:17px;height:17px}
+.downloaded-files-list{display:flex;flex-direction:column;gap:7px;min-height:70px;max-height:34vh;overflow-y:auto;overscroll-behavior:contain;padding:1px 2px 5px}
+.downloaded-file-row{display:flex;align-items:center;gap:10px;min-height:58px;padding:9px 10px;border:1px solid #ffffff16;border-radius:13px;background:linear-gradient(110deg,#19162e,#101326)}
+.downloaded-file-icon{width:38px;height:38px;flex:0 0 38px;border-radius:11px;display:grid;place-items:center;background:#342052;color:#d2a0ff}
+.downloaded-file-icon svg{width:19px;height:19px}
+.downloaded-file-copy{display:flex;flex-direction:column;gap:4px;min-width:0;flex:1}
+.downloaded-file-copy b{font-size:10px;line-height:1.35;color:#f3efff;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.downloaded-file-copy small{font-size:8px;color:#9991b3;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.downloaded-file-index{font-size:9px;color:#9e8abf;min-width:18px;text-align:right}
+.download-list-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;min-height:86px;padding:16px;text-align:center;border:1px dashed #51436d;border-radius:13px;color:#b7a9d1;font-size:10px}
+.download-list-empty>span{font-size:20px;color:#c18cff}
+.download-list-empty b{font-size:11px;color:#eee7ff}
+.download-list-empty small{font-size:9px;line-height:1.4;color:#8e86a5}
+.download-list-error{border-color:#8a4654;color:#ffb5bd}
+@media(max-height:650px){.downloaded-files-list{max-height:25vh}.downloaded-file-row{min-height:51px;padding:7px 9px}}
