@@ -617,6 +617,8 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         middle.addView(playButton, 1, LinearLayout.LayoutParams(playSize, smallControl))
         middle.setPadding(dp(2), 0, dp(2), 0)
         controls.addView(middle, LinearLayout.LayoutParams(FrameLayout.LayoutParams.MATCH_PARENT, dp(50)))
+        // Add breathing room between the transport controls and the timeline.
+        controls.addView(View(this), LinearLayout.LayoutParams(1, dp(13)))
         // Volume is deliberately removed from the button row; adjust it by swiping vertically on the right half.
         volumeButton = compactTool("🔊") { showVolumePicker() }
 
@@ -657,7 +659,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         )
         controlsParams.leftMargin = 0
         controlsParams.rightMargin = 0
-        controlsParams.bottomMargin = dp(56)
+        controlsParams.bottomMargin = dp(72)
         controls.layoutParams = controlsParams
         controls.isFocusable = false
         root.addView(controls, controlsParams)
