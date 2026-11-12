@@ -126,7 +126,7 @@ function renderAll(){let all=tracks.map((_,i)=>i);renderHomeFolders();renderHome
    const startIndex=nativeTracks.findIndex(x=>String(x.id||x.uri)===String(t.id||t.uri));
    try{
      // Single bridge round-trip: set queue and start the selected track natively.
-     await NativePlayer.setQueue({items:nativeTracks.map(x=>({id:String(x.id||x.uri),uri:x.uri,title:x.name,artist:x.artist})),startIndex:Math.max(0,startIndex)});
+     await NativePlayer.setQueue({items:nativeTracks.map(x=>({id:String(x.id||x.uri),uri:x.uri,title:x.name,artist:x.artist})),startIndex:Math.max(0,startIndex),repeatOne:repeatMode===2});
      nativeIsPlaying=true;await pollNativeState();
    }catch(e){nativeIsPlaying=false;syncNow();toast('Could not play this audio file on this device.');console.error(e)}
    return;
