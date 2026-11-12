@@ -70,7 +70,20 @@ class MediaLibraryScannerPlugin : Plugin() {
         val sort = if (type == "video") "${MediaStore.Video.Media.DISPLAY_NAME} COLLATE NOCASE ASC"
                    else "${MediaStore.Audio.Media.DISPLAY_NAME} COLLATE NOCASE ASC"
         try {
-            resolver.query(collection, projection.toTypedArray(), null, null, sort)?.use { cursor ->
+            // Keep Android's private/app-managed media trees out of the ordinary music library.
+            val selection: String?
+            val selectionArgs: Array<String>?
+            if (type != "video" && Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                selection = "${MediaStore.MediaColumns.RELATIVE_PATH} NOT LIKE ?"
+                selectionArgs = arrayOf("Android/%")
+            } else if (type != "video") {
+                selection = "${MediaStore.Audio.Media.DATA} NOT LIKE ? AND ${MediaStore.Audio.Media.DATA} NOT LIKE ?"
+                selectionArgs = arrayOf("%/Android/%", "Android/%")
+            } else {
+                selection = null
+                selectionArgs = null
+            }
+            resolver.query(collection, projection.toTypedArray(), selection, selectionArgs, sort)?.use { cursor ->
                 val idCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns._ID)
                 val nameCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.DISPLAY_NAME)
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
