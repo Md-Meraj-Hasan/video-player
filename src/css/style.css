@@ -272,3 +272,21 @@ body.video-mode #pages { min-height:0 !important; }
 #home .songinfo b{font-size:12px}
 #home .songinfo small{font-size:10px;margin-top:2px}
 #home .more{width:29px;height:29px;font-size:17px}
+
+
+/* Compact single-row brand/actions header; keep search directly underneath. */
+@media(max-width:600px){
+  .top{display:flex!important;flex-wrap:wrap!important;align-items:center!important;gap:6px!important;padding:7px 10px!important}
+  .brand{order:1!important;flex:1 1 0!important;min-width:0!important;gap:7px!important;overflow:hidden}
+  .brandicon{width:36px!important;height:36px!important;flex:0 0 36px!important;border-radius:11px!important;font-size:22px!important}
+  .brand-name{min-width:0!important;white-space:nowrap!important;font-size:12px!important;letter-spacing:0!important;line-height:1.15!important}
+  .brand-name>small{font-size:7px!important;letter-spacing:1.2px!important;white-space:nowrap!important}
+  .topactions{order:2!important;flex:0 0 auto!important;gap:5px!important}
+  .themebtn,.sharebtn{width:36px!important;min-width:36px!important;height:38px!important;border-radius:11px!important}
+  .themebtn{font-size:19px!important}
+  .sharebtn svg{width:17px!important;height:17px!important}
+  .scanbtn{height:38px!important;min-width:88px!important;padding:5px 8px!important;gap:4px!important;border-radius:11px!important}
+  .scanbtn span{font-size:16px!important}
+  .scanbtn small{font-size:9px!important}
+  .global-searchbox{order:3!important;flex:0 0 100%!important;width:100%!important;height:38px!important;min-height:38px!important;margin:0!important}
+}
