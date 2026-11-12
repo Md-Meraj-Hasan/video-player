@@ -252,3 +252,23 @@ body.video-mode #pages { min-height:0 !important; }
 .downloader-frame-wrap{width:100%;height:100%;min-height:0;border-radius:18px;overflow:hidden;background:#090d18;border:1px solid #282443}
 .downloader-player-embed{display:block;width:100%;height:100%;min-height:520px;border:0;background:#090d18}
 @media(max-height:720px){.downloader-embed-page{height:calc(100dvh - 180px);min-height:440px}.downloader-player-embed{min-height:440px}}
+
+
+/* Compact always-visible music search and all-songs-first home layout. */
+.top{height:auto!important;min-height:0!important;flex:0 0 auto!important;flex-wrap:wrap!important;gap:7px!important;padding:8px 14px!important;position:sticky!important;top:0!important;z-index:8!important}
+.brand{order:1;flex:1 1 auto;min-width:0;padding:0!important}
+.topactions{order:2;flex:0 0 auto;gap:6px!important}
+.global-searchbox{order:3;flex:0 0 100%;width:100%;height:40px!important;min-height:40px;margin:0!important;padding:0 12px!important;border:1px solid var(--accent-border);border-radius:12px}
+.global-searchbox input{font-size:13px!important}
+.global-searchbox span{font-size:20px!important}
+#pages{padding-top:7px!important}
+#home .home-song-heading{flex:0 0 auto;margin:3px 0 6px!important}
+.home-count{font-size:11px;color:var(--muted);font-weight:700}
+#home .home-folder-strip{flex:0 0 auto;width:100%;max-width:100%;overflow-x:auto;overflow-y:hidden;white-space:nowrap;touch-action:pan-x;overscroll-behavior-x:contain;padding:5px 1px 9px;margin-bottom:2px}
+#home .home-folder-strip .audio-folder-chip{max-width:78vw;padding:8px 11px;font-size:11px}
+#home #recent{flex:1 1 0;min-height:0;overflow-y:auto;overscroll-behavior:contain;padding-bottom:8px}
+#home .song{padding:6px 6px;gap:9px}
+#home .art{width:39px;height:39px;flex-basis:39px;border-radius:10px;font-size:18px}
+#home .songinfo b{font-size:12px}
+#home .songinfo small{font-size:10px;margin-top:2px}
+#home .more{width:29px;height:29px;font-size:17px}
