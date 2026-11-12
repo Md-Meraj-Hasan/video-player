@@ -174,7 +174,16 @@ for (const permission of servicePermissions) {
   if (!xml.includes(permission)) xml = xml.replace(/<manifest\b[^>]*>/, match => `${match}\n    ${permission}`);
 }
 if (!xml.includes('NativeVideoPlayerActivity')) {
-  xml = xml.replace(/<application\b[^>]*>/, match => `${match}\n        <activity android:name=".NativeVideoPlayerActivity" android:exported="false" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true" />`);
+  xml = xml.replace(/<application\\b[^>]*>/, match => `${match}
+        <activity android:name=".NativeVideoPlayerActivity" android:exported="true" android:screenOrientation="unspecified" android:configChanges="orientation|screenSize|keyboardHidden" android:supportsPictureInPicture="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+                <data android:mimeType="video/*" />
+                <data android:mimeType="audio/*" />
+            </intent-filter>
+        </activity>`);
 }
 if (!xml.includes('YouTubeDownloadService')) {
   xml = xml.replace(/<application\b[^>]*>/, match => `${match}
