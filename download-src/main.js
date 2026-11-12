@@ -336,7 +336,7 @@ async function readYouTubeDetails(videoUrl) {
   const clientAttempts = ["ANDROID", "WEB", "iOS"];
   let lastError = null;
   let bestInfo = null;
-  let bestFormats = [];
+  const formatsByKey = new Map();
   let totalDecipherFailures = 0;
 
   for (const clientType of clientAttempts) {
@@ -375,9 +375,15 @@ async function readYouTubeDetails(videoUrl) {
       totalDecipherFailures += decipherFailures;
 
       if (formats.length) {
-        bestInfo = { info, clientType };
-        bestFormats = formats;
-        break;
+        if (!bestInfo) bestInfo = { info, clientType };
+        // Different YouTube clients expose different progressive MP4 quality
+        // levels. Keep querying the fallback clients and merge their choices
+        // instead of stopping after the first (often 360p-only) response.
+        for (const item of formats) {
+          const key = String(item.height || 0) + "|" + item.mimeType;
+          const existing = formatsByKey.get(key);
+          if (!existing || (item.filesize || 0) > (existing.filesize || 0)) formatsByKey.set(key, item);
+        }
       }
 
       // Keep the first successful metadata response for a useful error
@@ -393,6 +399,7 @@ async function readYouTubeDetails(videoUrl) {
     throw new Error("YouTube returned no playable MP4 stream for this video.");
   }
 
+  const bestFormats = Array.from(formatsByKey.values()).sort((a, b) => b.height - a.height);
   const basic = bestInfo.info.basic_info || {};
   const thumbnails = basic.thumbnail || [];
   return {
