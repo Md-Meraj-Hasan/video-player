@@ -302,10 +302,17 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         }
         buildControls()
         setContentView(root)
-        val rawUri = intent.getStringExtra(EXTRA_URI)
+        val incomingUri = intent.data ?: (intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri)
+        val rawUri = intent.getStringExtra(EXTRA_URI) ?: incomingUri?.toString()
         if (rawUri.isNullOrBlank()) { finish(); return }
         videoUri = Uri.parse(rawUri)
-        videoTitle = intent.getStringExtra(EXTRA_TITLE) ?: videoUri?.lastPathSegment ?: "Video"
+        val incomingName = try {
+            contentResolver.query(videoUri!!, null, null, null, null)?.use { cursor ->
+                val index = cursor.getColumnIndex(android.provider.OpenableColumns.DISPLAY_NAME)
+                if (index >= 0 && cursor.moveToFirst()) cursor.getString(index) else null
+            }
+        } catch (_: Exception) { null }
+        videoTitle = intent.getStringExtra(EXTRA_TITLE) ?: incomingName ?: videoUri?.lastPathSegment ?: "Media"
         val token = SessionToken(this, ComponentName(this, MerajPlaybackService::class.java))
         val future = MediaController.Builder(this, token).buildAsync()
         controllerFuture = future
@@ -334,9 +341,16 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                     "3gp" -> "video/3gpp"
                     "ts", "m2ts" -> "video/mp2t"
                     "avi" -> "video/avi"
+                    "mp3" -> "audio/mpeg"
+                    "m4a" -> "audio/mp4"
+                    "aac" -> "audio/aac"
+                    "wav" -> "audio/wav"
+                    "ogg", "oga" -> "audio/ogg"
+                    "opus" -> "audio/opus"
+                    "flac" -> "audio/flac"
                     else -> null
                 }
-                val mime = providerMime?.takeIf { it.startsWith("video/") } ?: fallbackMime
+                val mime = providerMime?.takeIf { it.startsWith("video/") || it.startsWith("audio/") } ?: fallbackMime
                 val queueUris = intent.getStringArrayListExtra(EXTRA_QUEUE_URIS).orEmpty()
                 val queueTitles = intent.getStringArrayListExtra(EXTRA_QUEUE_TITLES).orEmpty()
                 val queueMimes = intent.getStringArrayListExtra(EXTRA_QUEUE_MIMES).orEmpty()
@@ -344,8 +358,8 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                 for (i in queueUris.indices) {
                     val qUri = Uri.parse(queueUris[i])
                     val qTitle = queueTitles.getOrNull(i) ?: qUri.lastPathSegment ?: "Video"
-                    val qMime = queueMimes.getOrNull(i)?.takeIf { it.startsWith("video/") }
-                        ?: try { contentResolver.getType(qUri)?.takeIf { it.startsWith("video/") } } catch (_: Exception) { null }
+                    val qMime = queueMimes.getOrNull(i)?.takeIf { it.startsWith("video/") || it.startsWith("audio/") }
+                        ?: try { contentResolver.getType(qUri)?.takeIf { it.startsWith("video/") || it.startsWith("audio/") } } catch (_: Exception) { null }
                     val builder = MediaItem.Builder().setMediaId(qUri.toString()).setUri(qUri)
                         .setMediaMetadata(MediaMetadata.Builder().setTitle(qTitle).build())
                     if (qMime != null && qMime != "video/*") builder.setMimeType(qMime)
