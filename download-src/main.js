@@ -57,6 +57,7 @@ const YtDlp = {
   stopBackgroundPlaylist: payload => callNativeDownloader("stopBackgroundPlaylist", payload),
   getPlaylistCancelState: payload => callNativeDownloader("getPlaylistCancelState", payload),
   cancelDownload: payload => callNativeDownloader("cancelDownload", payload),
+  listDownloadedVideos: payload => callNativeDownloader("listDownloadedVideos", payload),
   addListener: async (eventName, callback) => {
     const listeners = nativeListeners.get(eventName) || new Set();
     listeners.add(callback);
@@ -184,9 +185,11 @@ app.innerHTML = `
 
     <section class="page" id="page-downloads">
       <div class="page-heading"><div class="eyebrow"><span class="eyebrow-dot"></span> YOUR LIBRARY</div><h2>Downloads</h2><p>Track the current download and latest result.</p></div>
-      <div class="download-stats"><div><span class="stat-icon purple">${icon("download")}</span><b id="downloadCount">0</b><small>Sessions</small></div><div><span class="stat-icon cyan">${icon("speed")}</span><b id="downloadStatus">Ready</b><small>Latest status</small></div></div>
+      <div class="download-stats"><div><span class="stat-icon purple">${icon("video")}</span><b id="downloadCount">0</b><small>Saved videos</small></div><div><span class="stat-icon cyan">${icon("speed")}</span><b id="downloadStatus">Ready</b><small>Latest status</small></div></div>
       <div class="download-card manager-card" id="downloadState"><div class="empty-illustration">${icon("download")}</div><b>No downloads yet</b><small>Your download activity will appear here.</small></div>
-      <p class="storage-note">${icon("shield")} On Android 10+, completed files appear in Internal Storage / Download / NiceDownloader.</p>
+      <div class="download-list-heading"><div><span class="section-kicker">YOUR FILES</span><h3>Downloaded videos</h3></div><button type="button" class="download-refresh" id="refreshDownloadedBtn" aria-label="Refresh downloaded videos" title="Refresh">${icon("refresh")}</button></div>
+      <div id="downloadedFilesList" class="downloaded-files-list"><div class="download-list-empty">Loading downloaded videos…</div></div>
+      <p class="storage-note">${icon("shield")} Saved in Internal Storage / Download / NiceDownloader.</p>
     </section>
 
     <section class="page settings-page" id="page-settings">
@@ -436,7 +439,44 @@ function updateDownloadSummary(label) {
   $("#downloadStatus").textContent = label;
 }
 
-document.querySelectorAll("[data-tab]").forEach(item => item.addEventListener("click", () => switchTab(item.dataset.tab)));
+document.querySelectorAll("[data-tab]").forEach(item => item.addEventListener("click", () => {
+  switchTab(item.dataset.tab);
+  if (item.dataset.tab === "downloads") refreshDownloadedFiles();
+}));
+$("#refreshDownloadedBtn")?.addEventListener("click", refreshDownloadedFiles);
+
+function renderDownloadedFiles(items) {
+  const host = $("#downloadedFilesList");
+  if (!host) return;
+  const files = Array.isArray(items) ? items : [];
+  $("#downloadCount").textContent = String(files.length);
+  if (!files.length) {
+    host.innerHTML = '<div class="download-list-empty"><span>▣</span><b>No downloaded videos yet</b><small>Videos saved by Nice Downloader will appear here automatically.</small></div>';
+    return;
+  }
+  host.innerHTML = files.map((file, index) => {
+    const name = escapeText(file.name || "Downloaded video");
+    const path = escapeText((file.relativePath || "Download/NiceDownloader").replace(/^Download\\//, "").replace(/\\/$/, ""));
+    const size = formatSize(Number(file.size) || 0);
+    const date = Number(file.dateAdded) > 0 ? new Date(Number(file.dateAdded) * 1000).toLocaleDateString() : "";
+    return '<article class="downloaded-file-row"><div class="downloaded-file-icon">' + icon("video") + '</div><div class="downloaded-file-copy"><b title="' + name + '">' + name + '</b><small>' + escapeText([path, size, date].filter(Boolean).join(" · ")) + '</small></div><span class="downloaded-file-index">' + (index + 1) + '</span></article>';
+  }).join("");
+}
+async function refreshDownloadedFiles() {
+  const host = $("#downloadedFilesList");
+  if (!host) return;
+  if (!Capacitor.isNativePlatform()) {
+    host.innerHTML = '<div class="download-list-empty">Downloaded file listing is available in the Android app.</div>';
+    return;
+  }
+  host.innerHTML = '<div class="download-list-empty">Refreshing downloaded videos…</div>';
+  try {
+    const result = await YtDlp.listDownloadedVideos();
+    renderDownloadedFiles(result?.items || []);
+  } catch (error) {
+    host.innerHTML = '<div class="download-list-empty download-list-error">' + escapeText(error?.message || "Could not load downloaded videos. Tap refresh to retry.") + '</div>';
+  }
+}
 
 async function refreshStorageSettings() {
   const badge = $("#storageBadge");
@@ -673,6 +713,7 @@ async function runPlaylistDownloads() {
     : "Playlist finished: " + completed + " downloaded, " + failed + " failed.";
   downloadSessions += completed;
   updateDownloadSummary(playlistCancelRequested ? "Playlist cancelled" : (failed ? "Playlist partial" : "Playlist complete"));
+  await refreshDownloadedFiles();
   if (playlistCancelRequested) $("#playlistModal").hidden = true;
 }
 $("#playlistClose").addEventListener("click", () => {
@@ -773,6 +814,7 @@ async function startSelectedDownload() {
     progressLabel.textContent = "Completed";
     status.textContent = result.publicDownload ? "✓ Saved to Internal Storage / Download / NiceDownloader: " + (result.fileName || "video") : "✓ Download completed. App-private file: " + (result.filePath || result.folder || "open app storage");
     updateDownloadSummary("Completed");
+    await refreshDownloadedFiles();
     downloadState.innerHTML = '<div class="manager-status complete-status">${icon("check")} COMPLETED</div><div class="manager-file-icon complete-file">${icon("video")}</div><b>Download completed</b><small>' + escapeText(result.folder || "Saved in app Downloads") + '</small>';
   } catch (error) {
     const message = error?.message || String(error);
