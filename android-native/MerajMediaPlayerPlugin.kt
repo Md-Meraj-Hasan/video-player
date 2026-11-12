@@ -102,7 +102,9 @@ class MerajMediaPlayerPlugin : Plugin() {
             if (mediaItems.isEmpty()) { call.reject("No playable local media URIs were supplied."); return@withController }
             c.setMediaItems(mediaItems, startIndex.coerceIn(0, mediaItems.lastIndex), 0L)
             c.prepare()
-            call.resolve(JSObject().put("count", mediaItems.size))
+            c.playWhenReady = true
+            c.play()
+            call.resolve(JSObject().put("count", mediaItems.size).put("playing", true).put("startIndex", startIndex.coerceIn(0, mediaItems.lastIndex)))
         }
     }
 
