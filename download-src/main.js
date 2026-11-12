@@ -456,7 +456,10 @@ function renderDownloadedFiles(items) {
   }
   host.innerHTML = files.map((file, index) => {
     const name = escapeText(file.name || "Downloaded video");
-    const path = escapeText((file.relativePath || "Download/NiceDownloader").replace(/^Download\\//, "").replace(/\\/$/, ""));
+    let folderPath = String(file.relativePath || "Download/NiceDownloader");
+    if (folderPath.startsWith("Download/")) folderPath = folderPath.slice("Download/".length);
+    if (folderPath.endsWith("/")) folderPath = folderPath.slice(0, -1);
+    const path = escapeText(folderPath);
     const size = formatSize(Number(file.size) || 0);
     const date = Number(file.dateAdded) > 0 ? new Date(Number(file.dateAdded) * 1000).toLocaleDateString() : "";
     return '<article class="downloaded-file-row"><div class="downloaded-file-icon">' + icon("video") + '</div><div class="downloaded-file-copy"><b title="' + name + '">' + name + '</b><small>' + escapeText([path, size, date].filter(Boolean).join(" · ")) + '</small></div><span class="downloaded-file-index">' + (index + 1) + '</span></article>';
