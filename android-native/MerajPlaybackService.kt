@@ -119,7 +119,7 @@ internal object MerajAudioEffects {
     }
 
     @Synchronized fun setVolumeBoost(gainMillibels: Int) {
-        boostTarget = gainMillibels.coerceIn(0, 600)
+        boostTarget = gainMillibels.coerceIn(0, 300)
         try {
             loudness?.let { it.setTargetGain(boostTarget); it.enabled = boostTarget > 0 }
         } catch (e: Exception) {
