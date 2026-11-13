@@ -396,7 +396,9 @@ function init() {
     applyVideoTheme(videoThemeNames[(videoThemeNames.indexOf(current)+1)%videoThemeNames.length]);
   });
   window.addEventListener('storage', (e) => { if (e.key === 'merajMusicTheme' && e.newValue) applyVideoTheme(e.newValue, false); });
-  $('bottom-rescan')?.addEventListener('click', scanDeviceVideos);
+  $('bottom-download')?.addEventListener('click', () => {
+    window.parent.postMessage({ type: 'meraj-video-open-download' }, '*');
+  });
   $('choose-video')?.addEventListener('click', scanDeviceVideos);
 
   // Play / Pause
