@@ -55,6 +55,7 @@ window.addEventListener('message', async event => {
 window.addEventListener('message', async (event) => {
   if (!videoFrameBridge || event.source !== videoFrameBridge.contentWindow) return;
   const message = event.data;
+  if (message?.type === 'meraj-video-open-download') { page('downloadCenter'); return; }
   if (message?.type === 'meraj-video-switch-audio') { page('home'); return; }
   if (!message || message.bridge !== 'meraj-video-native' || !message.requestId) return;
   const reply = { bridge: 'meraj-video-native-result', requestId: message.requestId };
