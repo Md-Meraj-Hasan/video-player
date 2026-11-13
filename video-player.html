@@ -83,7 +83,7 @@
           </label>
         </div>
         <div id="video-folder-strip" class="video-folder-strip" aria-label="Video folders" role="tablist"></div>
-        <div class="library-tabs" role="tablist" aria-label="Video library view">
+        <div class="library-tabs hidden" role="tablist" aria-label="Video library view">
           <button id="video-tab-all" class="library-tab selected" type="button" role="tab" aria-selected="true">▣ Videos</button>
           <button id="video-tab-folders" class="library-tab" type="button" role="tab" aria-selected="false">▤ Folders</button>
         </div>
@@ -235,9 +235,9 @@
             <span>▤</span>
             <small>Folders</small>
           </button>
-          <button class="bottom-nav-item" type="button" id="bottom-rescan">
-            <span>⟳</span>
-            <small>Rescan</small>
+          <button class="bottom-nav-item" type="button" id="bottom-download" aria-label="Open downloads">
+            <span>⬇</span>
+            <small>Download</small>
           </button>
         </nav>
         <p class="local-footnote">Files are opened from your device. This app does not upload or share them.</p>
