@@ -217,6 +217,30 @@ async function setPlaybackSpeed(v){playbackSpeed=Math.min(1.5,Math.max(0.5,+v||1
 $('#speedBtn').onclick=()=>openAudioPopover('#speedPopover');
 const eqPresetNames={normal:'Normal',dance:'Dance',classic:'Classic',jazz:'Jazz',pop:'Pop',rock:'Rock',flat:'Flat','bass-boost':'Bass Boost'};
 let eqAvailablePresets=[];
+let audioVolumeBoostPercent=100;
+const audioVolumeBoostSlider=$('#audioVolumeBoost');
+const audioVolumeBoostValue=$('#audioVolumeBoostValue');
+function renderAudioVolumeBoost(){
+  if(audioVolumeBoostSlider) audioVolumeBoostSlider.value=String(audioVolumeBoostPercent);
+  if(audioVolumeBoostValue) audioVolumeBoostValue.textContent=audioVolumeBoostPercent+'%';
+}
+async function applyAudioVolumeBoost(value){
+  audioVolumeBoostPercent=Math.min(150,Math.max(100,Math.round(Number(value)||100)));
+  renderAudioVolumeBoost();
+  if(!Capacitor.isNativePlatform()||!nativePlayback){
+    $('#eqNote').textContent='Play a song in the Android app to apply native volume boost.';
+    return;
+  }
+  try{
+    await NativePlayer.setVolumeBoost({percent:audioVolumeBoostPercent});
+    $('#eqNote').textContent='Audio volume boost: '+audioVolumeBoostPercent+'% (maximum 150%).';
+  }catch(e){
+    console.error('Audio volume boost failed',e);
+    $('#eqNote').textContent='Could not apply volume boost: '+(e?.message||'Android audio effect unavailable');
+  }
+}
+audioVolumeBoostSlider?.addEventListener('input',e=>applyAudioVolumeBoost(e.target.value));
+renderAudioVolumeBoost();
 function renderEqualizerPresets(){
   const list=eqAvailablePresets.length?eqAvailablePresets:Object.entries(eqPresetNames).map(([key,name])=>({key,name}));
   $('#equalizerPresets').innerHTML=list.map(x=>`<button type="button" data-eq="${esc(x.key)}" class="${x.key===equalizerPreset?'selected':''}" aria-pressed="${x.key===equalizerPreset?'true':'false'}">${esc(x.name)}</button>`).join('');
