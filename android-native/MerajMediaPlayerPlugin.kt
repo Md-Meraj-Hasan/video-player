@@ -187,6 +187,22 @@ class MerajMediaPlayerPlugin : Plugin() {
         call.resolve(JSObject().put("presets", arr))
     }
 
+    @PluginMethod fun setVolumeBoost(call: PluginCall) {
+        val raw = call.data.opt("percent")
+        val percent = when (raw) {
+            is Number -> raw.toDouble().takeIf { it.isFinite() }?.toInt()
+            is String -> raw.toDoubleOrNull()?.takeIf { it.isFinite() }?.toInt()
+            else -> null
+        }
+        if (percent == null || percent !in 100..150) {
+            call.reject("Volume boost must be between 100 and 150 percent.")
+            return
+        }
+        val gainMillibels = (percent - 100) * 6
+        MerajAudioEffects.setVolumeBoost(gainMillibels)
+        call.resolve(JSObject().put("percent", percent).put("gainMillibels", gainMillibels).put("accepted", true))
+    }
+
     @PluginMethod fun setEqualizerPreset(call: PluginCall) {
         val key = call.getString("preset")
         if (key.isNullOrBlank()) { call.reject("Preset required"); return }
