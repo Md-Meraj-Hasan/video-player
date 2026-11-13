@@ -128,7 +128,7 @@ function renderAll(){let all=tracks.map((_,i)=>i);renderHomeFolders();renderHome
    try{
      // Single bridge round-trip: set queue and start the selected track natively.
      await NativePlayer.setQueue({items:nativeTracks.map(x=>({id:String(x.id||x.uri),uri:x.uri,title:x.name,artist:x.artist})),startIndex:Math.max(0,startIndex),repeatOne:repeatMode===2});
-     nativeIsPlaying=true;await pollNativeState();
+     nativeIsPlaying=true;await applyAudioVolumeBoost(audioVolumeBoostPercent);await pollNativeState();
    }catch(e){nativeIsPlaying=false;syncNow();toast('Could not play this audio file on this device.');console.error(e)}
    return;
  }
@@ -227,7 +227,7 @@ function renderAudioVolumeBoost(){
 async function applyAudioVolumeBoost(value){
   audioVolumeBoostPercent=Math.min(150,Math.max(100,Math.round(Number(value)||100)));
   renderAudioVolumeBoost();
-  if(!Capacitor.isNativePlatform()||!nativePlayback){
+  if(!Capacitor.isNativePlatform()){
     $('#eqNote').textContent='Play a song in the Android app to apply native volume boost.';
     return;
   }
