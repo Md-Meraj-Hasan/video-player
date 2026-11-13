@@ -114,7 +114,7 @@
 
 /* Compact pinned video-library header, matching the audio library layout. */
 #player-screen{padding-top:7px!important}
-#video-library-fixed-header{position:sticky!important;top:0!important;z-index:80!important;display:flex!important;flex-direction:column!important;gap:8px!important;margin:0 -16px 10px!important;padding:8px 16px 9px!important;background:linear-gradient(180deg,#0d0d18f7 0%,#0b0c15f5 100%)!important;border-bottom:1px solid color-mix(in srgb,var(--video-accent) 22%,transparent);backdrop-filter:blur(16px)}
+#video-library-fixed-header{position:sticky!important;top:0!important;z-index:80!important;display:flex!important;flex-direction:column!important;gap:8px!important;margin:0 -16px 10px!important;padding:8px 16px 9px!important;background:linear-gradient(180deg,#0d0d18f7 0%,#0b0c15f5 100%)!important;border-bottom:0!important;backdrop-filter:blur(16px)}
 .library-topline{align-items:center!important;gap:8px!important;margin:0!important}
 .library-title-wrap{flex:1 1 auto!important;min-width:0!important}
 .library-title-wrap .eyebrow{margin:0 0 2px!important;font-size:9px!important;letter-spacing:1.6px!important}
@@ -135,3 +135,6 @@
 #video-library-fixed-header>.library-tabs{order:4!important;display:grid!important;grid-template-columns:1fr 1fr!important;gap:7px!important;margin:0!important}
 #video-library-fixed-header .library-tab{min-height:34px!important;height:34px!important;font-size:11px!important;border-radius:10px!important}
 @media(max-width:380px){#video-library-fixed-header{padding-left:12px!important;padding-right:12px!important;margin-left:-12px!important;margin-right:-12px!important}.library-title-wrap h2{font-size:19px!important}#rescan-library-top,#video-theme-toggle{width:36px!important;min-width:36px!important;height:36px!important;flex-basis:36px!important}}
+
+/* Hide the redundant Videos / Folders switch row; folder chips remain available above. */
+#video-library-fixed-header .library-tabs{display:none!important}
