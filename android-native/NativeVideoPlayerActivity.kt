@@ -218,7 +218,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                     val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
                     val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                     val currentSystemVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-                    gestureStartVolume = (currentSystemVolume.toFloat() / maxSystemVolume + currentVolumeBoost / 600f).coerceIn(0f, 2f)
+                    gestureStartVolume = (currentSystemVolume.toFloat() / maxSystemVolume + currentVolumeBoost / 600f).coerceIn(0f, 1.5f)
                     val currentBrightness = window.attributes.screenBrightness
                     gestureStartBrightness = if (currentBrightness in 0.01f..1f) currentBrightness else 0.5f
                     activeSideGesture = 0
@@ -261,7 +261,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                             window.attributes = attrs
                             updateGestureIndicator(brightness, activeSideGesture)
                         } else if (activeSideGesture == 2) {
-                            val newVolume = (gestureStartVolume + delta * 2f).coerceIn(0f, 2f)
+                            val newVolume = (gestureStartVolume + delta * 1.5f).coerceIn(0f, 1.5f)
                             val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
                             val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
                             val systemLevel = newVolume.coerceAtMost(1f)
@@ -270,7 +270,7 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
                             MerajAudioEffects.setVolumeBoost(currentVolumeBoost.toInt())
                             volumeMuted = newVolume <= 0.001f
                             if (::volumeButton.isInitialized) volumeButton.text = if (volumeMuted) "🔇" else "🔊"
-                            updateGestureIndicator(newVolume / 2f, activeSideGesture)
+                            updateGestureIndicator(newVolume / 1.5f, activeSideGesture)
                         }
                     }
                 }
@@ -942,20 +942,20 @@ class NativeVideoPlayerActivity : Activity(), SensorEventListener {
         val audioManager = getSystemService(AUDIO_SERVICE) as AudioManager
         val maxSystemVolume = audioManager.getStreamMaxVolume(AudioManager.STREAM_MUSIC).coerceAtLeast(1)
         val systemVolume = audioManager.getStreamVolume(AudioManager.STREAM_MUSIC)
-        val initial = (systemVolume.toFloat() / maxSystemVolume * 100f + currentVolumeBoost / 6f).toInt().coerceIn(0, 200)
+        val initial = (systemVolume.toFloat() / maxSystemVolume * 100f + currentVolumeBoost / 6f).toInt().coerceIn(0, 150)
         val panel = LinearLayout(this).apply { orientation = LinearLayout.VERTICAL; setPadding(dp(22), dp(12), dp(22), dp(8)) }
         val label = TextView(this).apply { text = "Volume: $initial% (100% = device maximum)"; textSize = 14f }
         panel.addView(label)
-        val slider = SeekBar(this).apply { max = 200; progress = initial }
+        val slider = SeekBar(this).apply { max = 150; progress = initial }
         panel.addView(slider)
         val dialog = AlertDialog.Builder(this).setTitle("Volume") .setView(panel).setNegativeButton("Mute", null).setPositiveButton("Done", null).create()
         fun applyVolume(value: Int) {
             val base = value.coerceAtMost(100)
             audioManager.setStreamVolume(AudioManager.STREAM_MUSIC, (base / 100f * maxSystemVolume).toInt().coerceIn(0, maxSystemVolume), 0)
-            currentVolumeBoost = (value - 100).coerceAtLeast(0) * 6f
+            currentVolumeBoost = (value - 100).coerceIn(0, 50) * 6f
             MerajAudioEffects.setVolumeBoost(currentVolumeBoost.toInt())
             volumeMuted = value == 0
-            label.text = if (value <= 100) "Volume: $value% (device volume)" else "Volume: $value% (extra boost)"
+            label.text = if (value <= 100) "Volume: $value% (device volume)" else "Volume: $value% (extra boost, max 150%)"
             if (::volumeButton.isInitialized) volumeButton.text = if (volumeMuted) "🔇" else "🔊"
         }
         slider.setOnSeekBarChangeListener(object : SeekBar.OnSeekBarChangeListener {
