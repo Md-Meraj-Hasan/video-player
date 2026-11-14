@@ -104,7 +104,7 @@ async function youtubeNativeFetch(input, init = {}) {
       const message = String(error?.message || error || "");
       const isDnsFailure = /UnknownHostException|Unable to resolve host|No address associated with hostname/i.test(message);
       if (!isDnsFailure || attempt === 2) throw error;
-      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 400 : 1000));
+      await new Promise(resolve => setTimeout(resolve, attempt === 0 ? 250 : 500));
     }
   }
   if (lastError || !result) throw lastError || new Error("YouTube network request failed.");
@@ -336,7 +336,7 @@ async function readYouTubeDetails(videoUrl) {
   // Use the Android profile first. Once a client returns progressive MP4
   // formats, show the result immediately instead of waiting for slower
   // fallback profiles (iOS and WEB) on every normal link.
-  const clientAttempts = ["ANDROID", "WEB", "iOS"];
+  const clientAttempts = ["ANDROID", "WEB", "iOS"]; // fallback only when earlier profile has no usable MP4
   let lastError = null;
   let bestInfo = null;
   const formatsByKey = new Map();
@@ -379,14 +379,14 @@ async function readYouTubeDetails(videoUrl) {
 
       if (formats.length) {
         if (!bestInfo) bestInfo = { info, clientType };
-        // Different YouTube clients expose different progressive MP4 quality
-        // levels. Keep querying the fallback clients and merge their choices
-        // instead of stopping after the first (often 360p-only) response.
+        // Quick start: the first client with progressive MP4 is sufficient.
+        // Avoid serial WEB/iOS metadata requests before opening the chooser.
         for (const item of formats) {
           const key = String(item.height || 0) + "|" + item.mimeType;
           const existing = formatsByKey.get(key);
           if (!existing || (item.filesize || 0) > (existing.filesize || 0)) formatsByKey.set(key, item);
         }
+        break;
       }
 
       // Keep the first successful metadata response for a useful error
@@ -652,10 +652,6 @@ async function runPlaylistDownloads() {
     return;
   }
   for (let i = 0; i < videos.length; i++) {
-    try {
-      const cancelState = await YtDlp.getPlaylistCancelState();
-      if (cancelState.cancelled) playlistCancelRequested = true;
-    } catch {}
     if (playlistCancelRequested) break;
     const video = videos[i];
     const row = $("#playlistItems").children[i];

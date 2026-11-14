@@ -223,7 +223,7 @@ class YouTubeDownloadPlugin : Plugin() {
             try {
                 connection = URL(rawUrl).openConnection() as HttpURLConnection
                 connection.requestMethod = method
-                connection.connectTimeout = 20000
+                connection.connectTimeout = 10000
                 connection.readTimeout = 30000
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0 (Linux; Android 13; Mobile) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Mobile Safari/537.36")
@@ -310,8 +310,8 @@ class YouTubeDownloadPlugin : Plugin() {
 
                 connection = URL(raw).openConnection() as HttpURLConnection
                 activeDownloadConnection = connection
-                connection.connectTimeout = 20000
-                connection.readTimeout = 45000
+                connection.connectTimeout = 10000
+                connection.readTimeout = 30000
                 connection.instanceFollowRedirects = true
                 connection.setRequestProperty("User-Agent", "Mozilla/5.0")
                 connection.setRequestProperty("Accept-Encoding", "identity")
@@ -324,8 +324,8 @@ class YouTubeDownloadPlugin : Plugin() {
                     connection.disconnect()
                     connection = URL(raw).openConnection() as HttpURLConnection
                     activeDownloadConnection = connection
-                    connection.connectTimeout = 20000
-                    connection.readTimeout = 45000
+                    connection.connectTimeout = 10000
+                    connection.readTimeout = 30000
                     connection.instanceFollowRedirects = true
                     connection.setRequestProperty("User-Agent", "Mozilla/5.0")
                     connection.setRequestProperty("Accept-Encoding", "identity")
