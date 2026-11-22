@@ -129,7 +129,8 @@ async function scanDeviceVideos() {
       name: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
       title: (x.name || 'Unknown Video').replace(/\.[^.]+$/, ''),
       path: x.relativePath || x.path || 'Device Videos',
-      folder: x.relativePath ? x.relativePath.split('/')[0] : 'Device Videos',
+      // RELATIVE_PATH is a full directory such as Downloads/new_movies/; use its last segment.
+      folder: x.relativePath ? x.relativePath.replace(/\\/+$/, '').split('/').filter(Boolean).pop() || 'Device Videos' : 'Device Videos',
       playlistName: x.playlistName || '',
       playlistIndex: Number(x.playlistIndex ?? -1),
       isNiceDownload: String(x.id || '').startsWith('nice-downloader-'),
