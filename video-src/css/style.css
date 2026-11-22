@@ -138,3 +138,8 @@
 
 /* Hide the redundant Videos / Folders switch row; folder chips remain available above. */
 #video-library-fixed-header .library-tabs{display:none!important}
+
+
+/* Persistent last-played marker */
+.last-played-badge{display:inline-flex;align-items:center;margin-left:7px;padding:2px 7px;border-radius:999px;background:rgba(34,197,94,.16);border:1px solid rgba(74,222,128,.55);color:#86efac;font-size:9px;font-weight:900;letter-spacing:.55px;line-height:1.5;vertical-align:middle}
+.video-item.last-played{outline:1px solid rgba(74,222,128,.3);outline-offset:-1px}
