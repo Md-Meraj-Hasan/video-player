@@ -8,6 +8,7 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.os.PowerManager
 
 class YouTubeDownloadService : Service() {
     companion object {
@@ -17,6 +18,24 @@ class YouTubeDownloadService : Service() {
         const val ACTION_CANCEL = "com.meraj.nicedownloader.CANCEL_PLAYLIST"
         private const val CHANNEL_ID = "nice_downloader_playlist"
         private const val NOTIFICATION_ID = 7301
+    }
+
+    private var downloadWakeLock: PowerManager.WakeLock? = null
+
+    private fun acquireDownloadWakeLock() {
+        if (downloadWakeLock?.isHeld == true) return
+        val powerManager = getSystemService(PowerManager::class.java)
+        downloadWakeLock = powerManager.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "NiceDownloader:PlaylistDownload").apply {
+            setReferenceCounted(false)
+            acquire()
+        }
+    }
+
+    private fun releaseDownloadWakeLock() {
+        downloadWakeLock?.let { lock ->
+            if (lock.isHeld) lock.release()
+        }
+        downloadWakeLock = null
     }
 
     override fun onCreate() {
@@ -36,11 +55,13 @@ class YouTubeDownloadService : Service() {
             }
             ACTION_UPDATE -> updateNotification(intent.getStringExtra("message") ?: "Downloading playlist…", false)
             ACTION_STOP -> {
+                releaseDownloadWakeLock()
                 stopForeground(STOP_FOREGROUND_REMOVE)
                 stopSelf()
                 return START_NOT_STICKY
             }
             else -> {
+                acquireDownloadWakeLock()
                 val notification = buildNotification(intent?.getStringExtra("message") ?: "Preparing playlist…", false)
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                     startForeground(NOTIFICATION_ID, notification, android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_DATA_SYNC)
@@ -66,6 +87,11 @@ class YouTubeDownloadService : Service() {
             .setOnlyAlertOnce(true)
         if (!cancelling) builder.addAction(android.R.drawable.ic_menu_close_clear_cancel, "Cancel", cancelPending)
         return builder.build()
+    }
+
+    override fun onDestroy() {
+        releaseDownloadWakeLock()
+        super.onDestroy()
     }
 
     override fun onBind(intent: Intent?): IBinder? = null
