@@ -131,8 +131,8 @@ class YouTubeDownloadPlugin : Plugin() {
                     item.put("id", "nice-downloader-$id")
                     item.put("uri", uri.toString())
                     val storedName = cursor.getString(nameCol) ?: "Downloaded video"
-                    val playlistIndexMatch = Regex("^(\\d{4}) - (.*)$").find(storedName)
-                    item.put("name", playlistIndexMatch?.groupValues?.get(2) ?: storedName)
+                    // Keep the exact original filename; playlist order is metadata only.
+                    item.put("name", storedName)
                     item.put("size", cursor.getLong(sizeCol))
                     item.put("mimeType", cursor.getString(mimeCol) ?: "video/mp4")
                     item.put("type", cursor.getString(mimeCol) ?: "video/mp4")
@@ -141,7 +141,7 @@ class YouTubeDownloadPlugin : Plugin() {
                     item.put("relativePath", relativePath)
                     val folderName = relativePath.removeSuffix("/").substringAfterLast("/")
                     item.put("playlistName", folderName.takeIf { it.isNotBlank() && it != "NiceDownloader" })
-                    item.put("playlistIndex", playlistIndexMatch?.groupValues?.get(1)?.toIntOrNull() ?: -1)
+                    item.put("playlistIndex", -1)
                     item.put("dateAdded", if (dateCol >= 0) cursor.getLong(dateCol) else 0L)
                     items.put(item)
                 }
@@ -382,12 +382,9 @@ class YouTubeDownloadPlugin : Plugin() {
                     put(MediaStore.MediaColumns.MIME_TYPE, mimeType)
                     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
                         val playlistName = call.getString("playlistName")?.takeIf { it.isNotBlank() }
-                        val playlistIndex = call.getInt("playlistIndex", -1) ?: -1
                         val safePlaylistFolder = playlistName?.replace(Regex("[\\\\/:*?\"<>|\\r\\n]"), "_")?.trim()?.take(80)
-                        val storedDisplayName = if (safePlaylistFolder != null && playlistIndex >= 0)
-                            String.format(Locale.US, "%04d - %s", playlistIndex + 1, safeName)
-                        else safeName
-                        put(MediaStore.MediaColumns.DISPLAY_NAME, storedDisplayName)
+                        // Keep the original filename; playlist ordering stays in the UI.
+                        put(MediaStore.MediaColumns.DISPLAY_NAME, safeName)
                         put(MediaStore.MediaColumns.RELATIVE_PATH, if (safePlaylistFolder != null)
                             Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader/" + safePlaylistFolder + "/"
                         else Environment.DIRECTORY_DOWNLOADS + "/NiceDownloader")
