@@ -5,6 +5,7 @@
 
 let videos = [];
 let currentVideoIndex = -1;
+let lastPlayedVideoId = (() => { try { return localStorage.getItem('merajLastPlayedVideoId') || ''; } catch (_) { return ''; } })();
 let currentFolder = '__all__';
 let isControlsLocked = false;
 let unlockButtonTimer = null;
@@ -182,6 +183,9 @@ async function playVideoAtIndex(index, queueItems = videos) {
   if (index < 0 || index >= videos.length) return;
   currentVideoIndex = index;
   const item = videos[index];
+  lastPlayedVideoId = String(item.id || item.uri || '');
+  try { localStorage.setItem('merajLastPlayedVideoId', lastPlayedVideoId); } catch (_) {}
+  renderPlaylist();
 
   const displayName = item.title || item.name;
 
@@ -317,13 +321,14 @@ function renderPlaylist() {
   playlistEl.innerHTML = filtered.map((v) => {
     const originalIndex = videos.indexOf(v);
     const isActive = originalIndex === currentVideoIndex;
+    const isLastPlayed = !!lastPlayedVideoId && String(v.id || v.uri || '') === lastPlayedVideoId;
     return `
-      <div class="video-item ${isActive ? 'active' : ''}" data-index="${originalIndex}">
+      <div class="video-item ${isActive ? 'active' : ''} ${isLastPlayed ? 'last-played' : ''}" data-index="${originalIndex}">
         <div class="video-thumb">
           ${v.thumbnail ? `<img src="${v.thumbnail}" class="thumb-img" data-thumb-index="${originalIndex}" alt="">` : '▶'}
         </div>
         <div class="video-meta">
-          <strong>${v.title}</strong>
+          <strong>${v.title}${isLastPlayed ? ' <span class="last-played-badge">LAST PLAYED</span>' : ''}</strong>
           <small>${formatTime(v.duration)} • ${v.folder}</small>
         </div>
       </div>
