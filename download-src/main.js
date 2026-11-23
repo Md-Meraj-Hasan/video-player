@@ -631,7 +631,7 @@ async function retryPlaylistVideo(index) {
     await YtDlp.updateBackgroundPlaylist({message: "Retrying " + (video.title || "playlist video")});
     const info = await readYouTubeDetails("https://www.youtube.com/watch?v=" + encodeURIComponent(video.videoId));
     const format = selectPlaylistFormat(info.formats, $("#playlistQuality").value);
-    if (!format) throw new Error("No compatible MP4 format");
+    if (!format) throw new Error(playlistFormatUnavailableMessage(info.formats, $("#playlistQuality").value));
     progressWrap.hidden = false;
     progressBar.style.width = "0%";
     progressValue.textContent = "0%";
@@ -672,8 +672,22 @@ function selectPlaylistFormat(formats, requested) {
   if (!available.length) return null;
   if (requested === "best") return available[available.length - 1];
   const maxHeight = Number(requested);
+  if (!Number.isFinite(maxHeight) || maxHeight <= 0) return null;
+  // Never silently exceed the user's selected maximum. The previous fallback
+  // returned the lowest available format even when it was above the cap
+  // (for example, selecting 240p downloaded 360p when 240p was unavailable).
   const under = available.filter(f => f.height <= maxHeight);
-  return under[under.length - 1] || available[0];
+  return under.length ? under[under.length - 1] : null;
+}
+
+function playlistFormatUnavailableMessage(formats, requested) {
+  const available = [...new Set((formats || [])
+    .filter(f => f.hasVideo && f.hasAudio && f.url && f.mimeType === "video/mp4")
+    .map(f => Number(f.height)).filter(h => h > 0))].sort((a,b) => a-b);
+  if (requested === "best") return "No compatible combined MP4 format is available.";
+  const cap = Number(requested);
+  const list = available.length ? available.map(h => h + "p").join(", ") : "none";
+  return "Selected maximum " + cap + "p is unavailable as a combined MP4. Available: " + list + ". Choose an available quality; the app will not download a higher resolution than selected.";
 }
 
 async function runPlaylistDownloads() {
@@ -929,7 +943,7 @@ function showFormatChoices(info) {
   if (!videos.length) {
     const notice = document.createElement("div");
     notice.className = "format-unavailable";
-    notice.textContent = "No compatible combined MP4 stream was returned for this video. Try another public video or network.";
+    notice.textContent = "Only combined MP4 streams (video + audio in one file) are listed. YouTube often provides 480p/720p/1080p as separate video and audio streams; this downloader does not merge those streams yet, so they cannot be offered as a single MP4 format.";
     list.append(notice);
   }
   $("#formatStart").disabled = videos.length === 0;
