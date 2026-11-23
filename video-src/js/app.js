@@ -7,6 +7,8 @@ let videos = [];
 let currentVideoIndex = -1;
 let lastPlayedVideoId = (() => { try { return localStorage.getItem('merajLastPlayedVideoId') || ''; } catch (_) { return ''; } })();
 let currentFolder = '__all__';
+let videoSortMode = (() => { try { return localStorage.getItem('merajVideoSortMode') || 'time'; } catch (_) { return 'time'; } })();
+const videoNameCollator = new Intl.Collator(undefined, { numeric: true, sensitivity: 'base' });
 let isControlsLocked = false;
 let unlockButtonTimer = null;
 let controlsHideTimer = null;
@@ -137,6 +139,7 @@ async function scanDeviceVideos() {
       isNiceDownload: String(x.id || '').startsWith('nice-downloader-'),
       duration: Number(x.duration || 0) > 1000 ? Math.floor(Number(x.duration) / 1000) : Number(x.duration || 0),
       size: Number(x.size || 0),
+      modifiedAt: Number(x.modifiedAt || x.dateModified || x.dateAdded || x.date || 0),
       thumbnail: null
     }));
 
@@ -292,6 +295,20 @@ function renderPlaylist() {
     const matchesFolder = (currentFolder === '__all__' || v.folder === currentFolder);
     return matchesSearch && matchesFolder;
   });
+  const sorted = [...filtered].sort((a, b) => {
+    if (videoSortMode === 'name') return videoNameCollator.compare(a.title || '', b.title || '');
+    if (videoSortMode === 'number') {
+      const numsA = (a.title || '').match(/\d+/g) || [];
+      const numsB = (b.title || '').match(/\d+/g) || [];
+      const numA = numsA.length ? Number(numsA[numsA.length - 1]) : Number.MAX_SAFE_INTEGER;
+      const numB = numsB.length ? Number(numsB[numsB.length - 1]) : Number.MAX_SAFE_INTEGER;
+      return (numA - numB) || videoNameCollator.compare(a.title || '', b.title || '');
+    }
+    const toMillis = value => { const n = Number(value || 0); return n > 0 && n < 1000000000000 ? n * 1000 : n; };
+    return (toMillis(b.modifiedAt) - toMillis(a.modifiedAt)) || videoNameCollator.compare(a.title || '', b.title || '');
+  });
+  const sortSelect = $('video-sort');
+  if (sortSelect && sortSelect.value !== videoSortMode) sortSelect.value = videoSortMode;
 
   if (trackCountEl) trackCountEl.textContent = filtered.length;
   if (playlistGroupsEl) {
@@ -318,7 +335,7 @@ function renderPlaylist() {
     return;
   }
 
-  playlistEl.innerHTML = filtered.map((v) => {
+  playlistEl.innerHTML = sorted.map((v) => {
     const originalIndex = videos.indexOf(v);
     const isActive = originalIndex === currentVideoIndex;
     const isLastPlayed = !!lastPlayedVideoId && String(v.id || v.uri || '') === lastPlayedVideoId;
@@ -338,7 +355,7 @@ function renderPlaylist() {
   playlistEl.querySelectorAll('.video-item').forEach(row => {
     row.addEventListener('click', () => {
       const idx = parseInt(row.getAttribute('data-index'), 10);
-      playVideoAtIndex(idx);
+      playVideoAtIndex(idx, sorted);
     });
   });
 }
@@ -384,6 +401,15 @@ function init() {
 
   // Rescan Buttons
   $('rescan-library-top')?.addEventListener('click', scanDeviceVideos);
+  const sortSelect = $('video-sort');
+  if (sortSelect) {
+    sortSelect.value = videoSortMode;
+    sortSelect.addEventListener('change', () => {
+      videoSortMode = ['time', 'name', 'number'].includes(sortSelect.value) ? sortSelect.value : 'time';
+      try { localStorage.setItem('merajVideoSortMode', videoSortMode); } catch (_) {}
+      renderPlaylist();
+    });
+  }
   // Tap the palette icon to cycle solid premium themes; selection syncs with audio.
   const videoThemeToggle = $('video-theme-toggle');
   const videoThemeNames = ['default','green','red','silver','graphite','blue','ocean','sunset','gold','ice'];
