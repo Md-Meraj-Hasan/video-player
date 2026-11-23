@@ -59,7 +59,8 @@ class MediaLibraryScannerPlugin : Plugin() {
         val projection = if (type == "video") mutableListOf(
             MediaStore.Video.Media._ID, MediaStore.Video.Media.DISPLAY_NAME,
             MediaStore.Video.Media.SIZE, MediaStore.Video.Media.MIME_TYPE,
-            MediaStore.Video.Media.DURATION
+            MediaStore.Video.Media.DURATION,
+            MediaStore.MediaColumns.DATE_MODIFIED
         ) else mutableListOf(
             MediaStore.Audio.Media._ID, MediaStore.Audio.Media.DISPLAY_NAME,
             MediaStore.Audio.Media.SIZE, MediaStore.Audio.Media.MIME_TYPE,
@@ -89,6 +90,7 @@ class MediaLibraryScannerPlugin : Plugin() {
                 val sizeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.SIZE)
                 val mimeCol = cursor.getColumnIndexOrThrow(MediaStore.MediaColumns.MIME_TYPE)
                 val durationCol = cursor.getColumnIndex(MediaStore.MediaColumns.DURATION)
+                val modifiedCol = cursor.getColumnIndex(MediaStore.MediaColumns.DATE_MODIFIED)
                 val pathCol = cursor.getColumnIndex(MediaStore.MediaColumns.RELATIVE_PATH)
                 while (cursor.moveToNext()) {
                     val id = cursor.getLong(idCol)
@@ -102,6 +104,7 @@ class MediaLibraryScannerPlugin : Plugin() {
                     item.put("type", detectedMime)
                     item.put("mimeType", detectedMime)
                     item.put("duration", if (durationCol >= 0) cursor.getLong(durationCol) else 0L)
+                    item.put("modifiedAt", if (modifiedCol >= 0) cursor.getLong(modifiedCol) * 1000L else 0L)
                     val artistCol = cursor.getColumnIndex(MediaStore.Audio.Media.ARTIST)
                     val albumCol = cursor.getColumnIndex(MediaStore.Audio.Media.ALBUM)
                     item.put("artist", if (artistCol >= 0) cursor.getString(artistCol) ?: "Unknown artist" else "Unknown artist")
