@@ -615,6 +615,58 @@ function renderPlaylistQueue() {
   $("#playlistStart").textContent = "Download playlist one by one";
 }
 
+async function retryPlaylistVideo(index) {
+  if (!activePlaylist || playlistRunning) return;
+  const video = activePlaylist.videos[index];
+  const row = $("#playlistItems").children[index];
+  const state = row?.querySelector(".playlist-video-state");
+  const retryButton = state?.querySelector(".playlist-retry-btn");
+  if (!video || !state) return;
+  playlistRunning = true;
+  playlistCancelRequested = false;
+  if (retryButton) { retryButton.disabled = true; retryButton.textContent = "Retrying…"; }
+  state.firstChild && (state.firstChild.textContent = "Retrying… ");
+  try {
+    await YtDlp.startBackgroundPlaylist({message: "Retrying playlist video " + (index + 1)});
+    await YtDlp.updateBackgroundPlaylist({message: "Retrying " + (video.title || "playlist video")});
+    const info = await readYouTubeDetails("https://www.youtube.com/watch?v=" + encodeURIComponent(video.videoId));
+    const format = selectPlaylistFormat(info.formats, $("#playlistQuality").value);
+    if (!format) throw new Error("No compatible MP4 format");
+    progressWrap.hidden = false;
+    progressBar.style.width = "0%";
+    progressValue.textContent = "0%";
+    progressLabel.textContent = "Retry · " + (index + 1) + "/" + activePlaylist.videos.length;
+    state.textContent = "Downloading…";
+    await YtDlp.downloadStream({streamUrl:format.url,title:info.title || video.title,extension:"mp4",mimeType:"video/mp4",playlistName:activePlaylist.title,playlistIndex:index});
+    state.textContent = "✓ Saved";
+    row?.removeAttribute("title");
+    row?.removeAttribute("aria-label");
+    $("#playlistProgressLabel").textContent = "Retry successful · " + (index + 1) + "/" + activePlaylist.videos.length;
+    $("#playlistProgressValue").textContent = "Saved";
+    status.textContent = (info.title || video.title) + " downloaded successfully.";
+    downloadSessions += 1;
+    updateDownloadSummary("Retry complete");
+  } catch (error) {
+    const reason = String(error?.message || error || "Unknown error").replace(/\s+/g, " ").trim();
+    state.textContent = "Failed: " + (reason.length > 34 ? reason.slice(0, 31) + "…" : reason);
+    state.title = reason;
+    state.setAttribute("aria-label", "Download failed: " + reason);
+    row.title = reason;
+    row.setAttribute("aria-label", "Playlist video " + (index + 1) + " failed: " + reason);
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "playlist-retry-btn";
+    button.textContent = "Retry";
+    button.addEventListener("click", () => retryPlaylistVideo(index));
+    state.append(" ", button);
+    status.textContent = "Retry failed: " + reason;
+  } finally {
+    try { await YtDlp.stopBackgroundPlaylist(); } catch {}
+    playlistRunning = false;
+    await refreshDownloadedFiles();
+  }
+}
+
 function selectPlaylistFormat(formats, requested) {
   const available = (formats || []).filter(f => f.hasVideo && f.hasAudio && f.url && f.mimeType === "video/mp4").sort((a,b) => a.height-b.height);
   if (!available.length) return null;
@@ -691,6 +743,12 @@ async function runPlaylistDownloads() {
         state.textContent = "Failed: " + shortReason;
         state.title = reason;
         state.setAttribute("aria-label", "Download failed: " + reason);
+        const retryButton = document.createElement("button");
+        retryButton.type = "button";
+        retryButton.className = "playlist-retry-btn";
+        retryButton.textContent = "Retry";
+        retryButton.addEventListener("click", () => retryPlaylistVideo(i));
+        state.append(" ", retryButton);
       }
       if (row) {
         row.title = reason;
